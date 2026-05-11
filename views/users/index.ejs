@@ -1,0 +1,55 @@
+<%- include('../partials/header', { currentPage: 'users', title: 'Data User' }) %>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0">Data User</h5>
+  <a href="/auth/register" class="btn btn-primary btn-sm"><i class="ti ti-plus me-1"></i>Tambah User</a>
+</div>
+<form method="GET" action="/users" class="row g-2 mb-3">
+  <div class="col-md-4">
+    <input type="text" name="search" class="form-control" placeholder="Cari username, email..." value="<%= search %>">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-primary"><i class="ti ti-search me-1"></i>Cari</button>
+    <a href="/users" class="btn btn-secondary">Reset</a>
+  </div>
+</form>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr><th>#</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Karyawan</th><th>Last Login</th><th>Aksi</th></tr>
+      </thead>
+      <tbody>
+        <% if (users.length === 0) { %><tr><td colspan="8" class="text-center py-4 text-muted">Tidak ada data</td></tr><% } %>
+        <% var offset = (page-1)*10; users.forEach((u, i) => { %>
+        <tr>
+          <td><%= offset + i + 1 %></td>
+          <td><%= u.username %></td>
+          <td><%= u.email %></td>
+          <td><span class="badge <%= u.role === 'Admin' ? 'bg-danger' : 'bg-primary' %>"><%= u.role %></span></td>
+          <td><span class="badge <%= u.status === 'Active' ? 'bg-success' : 'bg-warning' %>"><%= u.status %></span></td>
+          <td><%= u.employee_name || '-' %></td>
+          <td><%= u.last_login ? new Date(u.last_login).toLocaleString('id-ID') : '-' %></td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <a href="/users/<%= u.id %>/edit" class="btn btn-warning"><i class="ti ti-edit"></i></a>
+              <form method="POST" action="/users/<%= u.id %>/delete" style="display:inline" onsubmit="return confirm('Hapus user ini?')">
+                <button class="btn btn-danger"><i class="ti ti-trash"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% if (totalPages > 1) { %>
+  <div class="card-footer">
+    <nav><ul class="pagination justify-content-center mb-0">
+      <% for (let p = 1; p <= totalPages; p++) { %>
+      <li class="page-item <%= p === page ? 'active' : '' %>"><a class="page-link" href="?search=<%= search %>&page=<%= p %>"><%= p %></a></li>
+      <% } %>
+    </ul></nav>
+  </div>
+  <% } %>
+</div>
+<%- include('../partials/scripts') %>

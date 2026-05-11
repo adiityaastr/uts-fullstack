@@ -1,0 +1,37 @@
+<ul class="navbar-nav flex-column mt-2">
+  <li class="nav-item">
+    <a class="nav-link <%= currentPage === 'dashboard' ? 'active' : '' %>" href="/dashboard">
+      <span class="nav-icon"><i class="ti ti-dashboard"></i></span>
+      <span class="text">Dashboard</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link <%= currentPage === 'employees' ? 'active' : '' %>" href="/employees">
+      <span class="nav-icon"><i class="ti ti-users"></i></span>
+      <span class="text">Karyawan</span>
+    </a>
+  </li>
+  <% if (locals.user && locals.user.role === 'Admin') { %>
+  <li class="nav-item">
+    <a class="nav-link <%= currentPage === 'users' ? 'active' : '' %>" href="/users">
+      <span class="nav-icon"><i class="ti ti-user-shield"></i></span>
+      <span class="text">Users</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link <%= currentPage === 'upload' ? 'active' : '' %>" href="/upload">
+      <span class="nav-icon"><i class="ti ti-file-upload"></i></span>
+      <span class="text">Upload Excel</span>
+    </a>
+  </li>
+  <% } %>
+  <li class="nav-item mt-4">
+    <hr class="mx-3">
+  </li>
+  <li class="nav-item">
+    <a class="nav-link text-danger" href="/auth/logout">
+      <span class="nav-icon"><i class="ti ti-logout"></i></span>
+      <span class="text">Logout</span>
+    </a>
+  </li>
+</ul>

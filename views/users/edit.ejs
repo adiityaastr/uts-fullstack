@@ -1,0 +1,18 @@
+<%- include('../partials/header', { currentPage: 'users', title: 'Edit User' }) %>
+<div class="card shadow-sm">
+  <div class="card-header"><h5 class="card-title mb-0">Edit User: <%= user.username %></h5></div>
+  <div class="card-body">
+    <form method="POST" action="/users/<%= user.id %>">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label">Role</label><select name="role" class="form-select"><option value="Admin" <%= user.role === 'Admin' ? 'selected' : '' %>>Admin</option><option value="Employee" <%= user.role === 'Employee' ? 'selected' : '' %>>Employee</option></select></div>
+        <div class="col-md-6"><label class="form-label">Status</label><select name="status" class="form-select"><option value="Active" <%= user.status === 'Active' ? 'selected' : '' %>>Active</option><option value="Inactive" <%= user.status === 'Inactive' ? 'selected' : '' %>>Inactive</option></select></div>
+        <div class="col-md-6"><label class="form-label">Password Baru (kosongkan jika tidak diganti)</label><input type="password" name="password" class="form-control" minlength="6"></div>
+      </div>
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-warning"><i class="ti ti-save me-1"></i>Update</button>
+        <a href="/users" class="btn btn-secondary">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>
+<%- include('../partials/scripts') %>

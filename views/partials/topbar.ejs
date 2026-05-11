@@ -1,0 +1,21 @@
+<nav class="navbar navbar-expand bg-body-tertiary border-bottom px-3">
+  <div class="container-fluid">
+    <span class="navbar-text fw-semibold">Employee Management System</span>
+    <div class="d-flex align-items-center gap-3 ms-auto">
+      <button id="darkModeToggle" class="btn btn-sm btn-outline-secondary" title="Toggle Dark Mode">
+        <i class="ti ti-moon"></i>
+      </button>
+      <% if (locals.user) { %>
+      <div class="dropdown">
+        <button class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown">
+          <i class="ti ti-user-circle me-1"></i><%= user.username %>
+          <span class="badge bg-primary ms-1"><%= user.role %></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="/auth/logout"><i class="ti ti-logout me-1"></i>Logout</a></li>
+        </ul>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</nav>

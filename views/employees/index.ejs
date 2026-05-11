@@ -1,0 +1,79 @@
+<%- include('../partials/header', { currentPage: 'employees', title: 'Data Karyawan' }) %>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h5 class="mb-0">Data Karyawan</h5>
+  <div class="d-flex gap-2 flex-wrap">
+    <% if (locals.user && locals.user.role === 'Admin') { %>
+    <a href="/employees/export/excel" class="btn btn-success btn-sm"><i class="ti ti-download me-1"></i>Export Excel</a>
+    <a href="/employees/export/pdf" class="btn btn-danger btn-sm"><i class="ti ti-file-pdf me-1"></i>Export PDF</a>
+    <a href="/employees/create" class="btn btn-primary btn-sm"><i class="ti ti-plus me-1"></i>Tambah</a>
+    <% } %>
+  </div>
+</div>
+
+<form method="GET" action="/employees" class="row g-2 mb-3">
+  <div class="col-md-4 col-sm-6">
+    <input type="text" name="search" class="form-control" placeholder="Cari nama, email, divisi, status..." value="<%= search %>">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-primary"><i class="ti ti-search me-1"></i>Cari</button>
+    <a href="/employees" class="btn btn-secondary">Reset</a>
+  </div>
+</form>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th><th>Kode</th><th>Nama</th><th>Divisi</th><th>Jabatan</th><th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (employees.length === 0) { %>
+        <tr><td colspan="7" class="text-center py-4 text-muted">Tidak ada data</td></tr>
+        <% } %>
+        <% var offset = (page-1)*10; employees.forEach((e, i) => { %>
+        <tr>
+          <td><%= offset + i + 1 %></td>
+          <td><%= e.employee_code %></td>
+          <td><%= e.full_name %></td>
+          <td><%= e.division %></td>
+          <td><%= e.position || '-' %></td>
+          <td>
+            <span class="badge <%= e.employment_status === 'Active' ? 'bg-success' : e.employment_status === 'Inactive' ? 'bg-warning' : 'bg-danger' %>">
+              <%= e.employment_status %>
+            </span>
+          </td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <a href="/employees/<%= e.id %>" class="btn btn-info" title="Detail"><i class="ti ti-eye"></i></a>
+              <% if (locals.user && locals.user.role === 'Admin') { %>
+              <a href="/employees/<%= e.id %>/edit" class="btn btn-warning" title="Edit"><i class="ti ti-edit"></i></a>
+              <form method="POST" action="/employees/<%= e.id %>/delete" style="display:inline" onsubmit="return confirm('Hapus karyawan ini?')">
+                <button class="btn btn-danger" title="Hapus"><i class="ti ti-trash"></i></button>
+              </form>
+              <% } %>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% if (totalPages > 1) { %>
+  <div class="card-footer">
+    <nav>
+      <ul class="pagination justify-content-center mb-0">
+        <% for (let p = 1; p <= totalPages; p++) { %>
+        <li class="page-item <%= p === page ? 'active' : '' %>">
+          <a class="page-link" href="?search=<%= search %>&page=<%= p %>"><%= p %></a>
+        </li>
+        <% } %>
+      </ul>
+    </nav>
+    <small class="text-muted d-block text-center mt-1">Total <%= total %> data</small>
+  </div>
+  <% } %>
+</div>
+<%- include('../partials/scripts') %>

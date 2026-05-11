@@ -1,0 +1,42 @@
+<%- include('../partials/header', { currentPage: 'upload', title: 'Upload Excel' }) %>
+<div class="row">
+  <div class="col-md-6">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header"><h5 class="card-title mb-0">Upload File Excel/CSV</h5></div>
+      <div class="card-body">
+        <form method="POST" action="/upload/excel" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label">Pilih File (.xlsx, .xls, .csv)</label>
+            <input type="file" name="excelfile" class="form-control" accept=".xlsx,.xls,.csv" required>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="ti ti-upload me-1"></i>Upload & Import</button>
+        </form>
+        <div class="mt-3">
+          <small class="text-muted">Format Excel harus memiliki header: employee_code, full_name, gender, birth_date, email, phone_number, address, city, province, postal_code, division, position, salary, join_date, employment_status, education, marital_status, emergency_contact, emergency_phone</small>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><h5 class="card-title mb-0">File Terupload</h5></div>
+      <div class="card-body">
+        <% if (files.length === 0) { %><p class="text-muted">Belum ada file.</p><% } %>
+        <table class="table table-sm">
+          <% files.forEach(f => { %>
+          <tr>
+            <td><%= f.name %></td>
+            <td><small><%= (f.size / 1024).toFixed(1) %> KB</small></td>
+            <td>
+              <form method="POST" action="/upload/file/<%= f.name %>/delete" style="display:inline" onsubmit="return confirm('Hapus file ini?')">
+                <button class="btn btn-danger btn-sm"><i class="ti ti-trash"></i> Hapus</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<%- include('../partials/scripts') %>
