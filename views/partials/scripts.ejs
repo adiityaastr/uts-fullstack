@@ -3,35 +3,16 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.52.0/dist/apexcharts.min.js"></script>
 <script>
-  (function() {
-    var html = document.documentElement;
-    var saved = localStorage.getItem('theme');
-    if (saved) html.setAttribute('data-bs-theme', saved);
-    updateIcon();
-  })();
-  document.getElementById('themeToggle').addEventListener('click', function() {
-    var html = document.documentElement;
-    var theme = html.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-bs-theme', theme);
-    localStorage.setItem('theme', theme);
-    updateIcon();
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('mobileOverlay').classList.toggle('show');
+}
+document.getElementById('mobileOverlay').addEventListener('click', toggleSidebar);
+setTimeout(function() {
+  document.querySelectorAll('.alert').forEach(function(a) {
+    setTimeout(function() { var bs = bootstrap.Alert.getInstance(a); if (bs) bs.close(); }, 4000);
   });
-  function updateIcon() {
-    var icon = document.getElementById('themeIcon');
-    if (!icon) return;
-    var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-    icon.className = isDark ? 'ti ti-moon' : 'ti ti-sun';
-  }
-  function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
-    document.getElementById('mobileOverlay').classList.toggle('show');
-  }
-  document.getElementById('mobileOverlay').addEventListener('click', toggleSidebar);
-  setTimeout(function() {
-    document.querySelectorAll('.alert').forEach(function(a) {
-      setTimeout(function() { var bs = bootstrap.Alert.getInstance(a); if (bs) bs.close(); }, 5000);
-    });
-  }, 500);
+}, 300);
 </script>
 </body>
 </html>

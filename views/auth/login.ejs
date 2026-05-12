@@ -1,115 +1,216 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login | PT Digital Nusantara</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.45.0/tabler-icons.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
-    .auth-page {
-      min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
-      position: relative; overflow: hidden;
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f5f3f0; min-height: 100vh; }
+    .login-wrapper {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
     }
-    .auth-page::before {
-      content: ''; position: absolute; width: 600px; height: 600px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(99,102,241,0.25), transparent 70%);
-      top: -200px; right: -200px;
-    }
-    .auth-page::after {
-      content: ''; position: absolute; width: 400px; height: 400px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(139,92,246,0.2), transparent 70%);
-      bottom: -100px; left: -100px;
-    }
-    .auth-card {
-      background: rgba(255,255,255,0.97);
-      backdrop-filter: blur(20px);
-      border-radius: 24px; padding: 44px 36px;
-      width: 100%; max-width: 420px;
-      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
-      position: relative; z-index: 1;
-    }
-    .auth-logo {
-      width: 52px; height: 52px; border-radius: 14px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 16px;
-    }
-    .auth-logo i { color: #fff; font-size: 26px; }
-    .auth-card h3 { font-weight: 800; font-size: 22px; letter-spacing: -0.5px; text-align: center; }
-    .auth-card .subtitle { color: #64748b; font-size: 14px; margin: 6px 0 28px; text-align: center; }
-    .auth-card .form-label { font-weight: 600; font-size: 13px; color: #334155; margin-bottom: 6px; }
-    .auth-card .form-control {
-      border-radius: 12px; border: 1px solid #e2e8f0; padding: 12px 16px;
-      font-size: 15px; transition: all 0.2s; background: #f8fafc;
-    }
-    .auth-card .form-control:focus {
-      border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
-      background: #fff;
-    }
-    .captcha-box {
-      background: linear-gradient(135deg, #f8fafc, #e0e7ff);
-      border-radius: 12px; padding: 14px; text-align: center;
-      border: 1px dashed #c7d2fe;
-    }
-    .captcha-box .question { font-weight: 700; font-size: 18px; color: #312e81; margin-bottom: 8px; }
-    .captcha-box .form-control { text-align: center; font-size: 18px; font-weight: 600; }
-    .btn-auth {
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
-      color: #fff; border: none; border-radius: 12px;
-      padding: 12px; font-size: 15px; font-weight: 600;
-      width: 100%; transition: all 0.2s; letter-spacing: 0.3px;
-    }
-    .btn-auth:hover {
-      background: linear-gradient(135deg, #4338ca, #6d28d9);
-      transform: translateY(-1px); box-shadow: 0 8px 20px rgba(79,70,229,0.35);
+    .login-left {
+      background: #1a1a1a;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px;
       color: #fff;
+      position: relative;
+      overflow: hidden;
     }
-    .alert { border-radius: 12px; border: none; font-weight: 500; font-size: 13px; padding: 12px 16px; }
-    .alert-danger { background: #fef2f2; color: #991b1b; }
-    .alert-success { background: #ecfdf5; color: #065f46; }
+    .login-left::after {
+      content: '';
+      position: absolute;
+      bottom: -80px;
+      right: -80px;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.03);
+    }
+    .login-left h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+    .login-left p {
+      color: #999;
+      font-size: 15px;
+      line-height: 1.6;
+      max-width: 360px;
+    }
+    .login-left .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 40px;
+      padding: 8px 14px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      font-size: 13px;
+      color: #ccc;
+    }
+    .login-left .brand-badge i { font-size: 20px; color: #7c9a92; }
+    .login-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+    .login-form {
+      width: 100%;
+      max-width: 380px;
+    }
+    .login-form h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 6px;
+    }
+    .login-form .subtitle {
+      color: #777;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    .form-group { margin-bottom: 20px; }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 6px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: #7c9a92;
+      box-shadow: 0 0 0 3px rgba(124,154,146,0.1);
+    }
+    .captcha-section {
+      background: #fafaf8;
+      border: 1px solid #e8e6e3;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .captcha-section .question {
+      font-size: 20px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .captcha-section input {
+      width: 120px;
+      margin: 0 auto;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 600;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: inherit;
+    }
+    .captcha-section input:focus {
+      outline: none;
+      border-color: #7c9a92;
+    }
+    .remember-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+    .remember-row label { display: flex; align-items: center; gap: 6px; color: #555; cursor: pointer; }
+    .remember-row a { color: #7c9a92; text-decoration: none; font-weight: 500; }
+    .remember-row a:hover { text-decoration: underline; }
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: #1a1a1a;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-login:hover { background: #333; }
+    .alert {
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+    .alert-danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    @media (max-width: 768px) {
+      .login-wrapper { grid-template-columns: 1fr; }
+      .login-left { display: none; }
+      .login-right { padding: 24px; }
+    }
   </style>
 </head>
 <body>
-<div class="auth-page">
-  <div class="auth-card">
-    <div class="auth-logo"><i class="ti ti-building"></i></div>
-    <h3>PT Digital Nusantara</h3>
-    <p class="subtitle">Employee Management System</p>
+<div class="login-wrapper">
+  <div class="login-left">
+    <div class="brand-badge">
+      <i class="ti ti-building"></i>
+      PT Digital Nusantara
+    </div>
+    <h1>Kelola karyawan<br>dengan mudah.</h1>
+    <p>Sistem manajemen karyawan yang membantu Anda mengelola data, divisi, dan laporan dalam satu tempat.</p>
+  </div>
+  <div class="login-right">
+    <div class="login-form">
+      <h2>Masuk</h2>
+      <p class="subtitle">Silakan masuk ke akun Anda</p>
 
-    <% if (locals.error) { %><div class="alert alert-danger"><i class="ti ti-alert-circle me-1"></i><%= error %></div><% } %>
-    <% if (locals.success) { %><div class="alert alert-success"><i class="ti ti-circle-check me-1"></i><%= success %></div><% } %>
+      <% if (locals.error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+      <% if (locals.success) { %><div class="alert alert-success"><%= success %></div><% } %>
 
-    <form method="POST" action="/auth/login">
-      <div class="mb-3">
-        <label class="form-label">Username</label>
-        <input type="text" name="username" class="form-control" required autofocus placeholder="Masukkan username">
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Password</label>
-        <input type="password" name="password" class="form-control" required placeholder="Masukkan password">
-      </div>
-      <div class="mb-3 captcha-box">
-        <div class="question"><%= captcha.question %></div>
-        <input type="number" name="captcha" class="form-control" required placeholder="Jawaban">
-      </div>
-      <div class="mb-3 form-check">
-        <input type="checkbox" name="remember" class="form-check-input" id="remember">
-        <label class="form-check-label" for="remember" style="font-size:13px;font-weight:500;">Ingat saya</label>
-      </div>
-      <button type="submit" class="btn btn-auth mb-3">Masuk</button>
-      <a href="/auth/forgot-password" style="display:block;text-align:center;font-size:13px;color:#6366f1;font-weight:500;text-decoration:none;">Lupa Password?</a>
-    </form>
+      <form method="POST" action="/auth/login">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" name="username" required autofocus placeholder="Masukkan username">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" name="password" required placeholder="Masukkan password">
+        </div>
+        <div class="captcha-section">
+          <div class="question"><%= captcha.question %></div>
+          <input type="number" name="captcha" required placeholder="?">
+        </div>
+        <div class="remember-row">
+          <label><input type="checkbox" name="remember"> Ingat saya</label>
+          <a href="/auth/forgot-password">Lupa password?</a>
+        </div>
+        <button type="submit" class="btn-login">Masuk</button>
+      </form>
+    </div>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

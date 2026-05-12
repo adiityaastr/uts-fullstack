@@ -6,12 +6,8 @@
   </div>
   <div class="d-flex gap-2 flex-wrap">
     <% if (locals.user && locals.user.role === 'Admin') { %>
-    <a href="/employees/export/excel" class="btn btn-sm" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;">
-      <i class="ti ti-download me-1"></i>Export Excel
-    </a>
-    <a href="/employees/export/pdf" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;">
-      <i class="ti ti-file-pdf me-1"></i>Export PDF
-    </a>
+    <a href="/employees/export/excel" class="btn btn-sm btn-light"><i class="ti ti-download me-1"></i>Excel</a>
+    <a href="/employees/export/pdf" class="btn btn-sm btn-light"><i class="ti ti-file-text me-1"></i>PDF</a>
     <a href="/employees/create" class="btn btn-primary btn-sm"><i class="ti ti-plus me-1"></i>Tambah</a>
     <% } %>
   </div>
@@ -20,8 +16,8 @@
 <form method="GET" action="/employees" class="row g-2 mb-3">
   <div class="col-md-4 col-sm-8">
     <div class="input-group">
-      <span class="input-group-text" style="border-radius:10px 0 0 10px;"><i class="ti ti-search"></i></span>
-      <input type="text" name="search" class="form-control" placeholder="Cari nama, email, divisi, status..." value="<%= search %>">
+      <span class="input-group-text"><i class="ti ti-search"></i></span>
+      <input type="text" name="search" class="form-control" placeholder="Cari nama, divisi, status..." value="<%= search %>">
     </div>
   </div>
   <div class="col-auto">
@@ -34,36 +30,29 @@
   <div class="table-responsive">
     <table class="table">
       <thead>
-        <tr>
-          <th>#</th><th>Kode</th><th>Nama</th><th>Divisi</th><th>Jabatan</th><th>Status</th>
-          <th>Aksi</th>
-        </tr>
+        <tr><th>#</th><th>Kode</th><th>Nama</th><th>Divisi</th><th>Jabatan</th><th>Status</th><th>Aksi</th></tr>
       </thead>
       <tbody>
         <% if (employees.length === 0) { %>
-        <tr><td colspan="7" class="text-center py-5 text-muted">
-          <i class="ti ti-users fs-1 d-block mb-2 opacity-25"></i>Belum ada data karyawan
-        </td></tr>
+        <tr><td colspan="7" class="text-center py-5" style="color:#aaa;"><i class="ti ti-users" style="font-size:32px;display:block;margin-bottom:8px;opacity:0.3;"></i>Belum ada data karyawan</td></tr>
         <% } %>
         <% var offset = (page-1)*10; employees.forEach((e, i) => { %>
         <tr>
-          <td style="font-weight:600;color:#64748b;"><%= offset + i + 1 %></td>
-          <td><span style="background:#f1f5f9;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:500;"><%= e.employee_code %></span></td>
+          <td style="font-weight:600;color:#999;"><%= offset + i + 1 %></td>
+          <td><code style="background:#f5f3f0;padding:2px 6px;border-radius:4px;font-size:11px;"><%= e.employee_code %></code></td>
           <td style="font-weight:600;"><%= e.full_name %></td>
           <td><%= e.division %></td>
           <td><%= e.position || '-' %></td>
           <td>
-            <span class="badge <%= e.employment_status === 'Active' ? 'bg-success' : e.employment_status === 'Inactive' ? 'bg-warning text-dark' : 'bg-danger' %>">
-              <%= e.employment_status %>
-            </span>
+            <span class="badge <%= e.employment_status === 'Active' ? 'bg-success' : e.employment_status === 'Inactive' ? 'bg-warning text-dark' : 'bg-danger' %>"><%= e.employment_status %></span>
           </td>
           <td>
-            <div class="btn-group btn-group-sm">
-              <a href="/employees/<%= e.id %>" class="btn" style="background:#e0f2fe;color:#0284c7;border-color:#bae6fd;" title="Detail"><i class="ti ti-eye"></i></a>
+            <div class="d-flex gap-1">
+              <a href="/employees/<%= e.id %>" class="btn btn-sm btn-light" title="Detail"><i class="ti ti-eye"></i></a>
               <% if (locals.user && locals.user.role === 'Admin') { %>
-              <a href="/employees/<%= e.id %>/edit" class="btn" style="background:#fef3c7;color:#d97706;border-color:#fde68a;" title="Edit"><i class="ti ti-edit"></i></a>
+              <a href="/employees/<%= e.id %>/edit" class="btn btn-sm btn-light" title="Edit"><i class="ti ti-edit"></i></a>
               <form method="POST" action="/employees/<%= e.id %>/delete" style="display:inline" onsubmit="return confirm('Hapus karyawan ini?')">
-                <button class="btn" style="background:#fef2f2;color:#dc2626;border-color:#fecaca;" title="Hapus"><i class="ti ti-trash"></i></button>
+                <button class="btn btn-sm btn-light" title="Hapus" style="color:#dc2626;"><i class="ti ti-trash"></i></button>
               </form>
               <% } %>
             </div>
@@ -75,16 +64,12 @@
   </div>
   <% if (totalPages > 1) { %>
   <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <small class="text-muted">Menampilkan <%= employees.length %> dari <%= total %> data</small>
-    <nav>
-      <ul class="pagination mb-0">
-        <% for (let p = 1; p <= totalPages; p++) { %>
-        <li class="page-item <%= p === page ? 'active' : '' %>">
-          <a class="page-link" href="?search=<%= search %>&page=<%= p %>"><%= p %></a>
-        </li>
-        <% } %>
-      </ul>
-    </nav>
+    <small style="color:#999;">Menampilkan <%= employees.length %> dari <%= total %> data</small>
+    <nav><ul class="pagination mb-0">
+      <% for (let p = 1; p <= totalPages; p++) { %>
+      <li class="page-item <%= p === page ? 'active' : '' %>"><a class="page-link" href="?search=<%= search %>&page=<%= p %>"><%= p %></a></li>
+      <% } %>
+    </ul></nav>
   </div>
   <% } %>
 </div>

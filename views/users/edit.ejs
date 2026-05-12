@@ -4,16 +4,15 @@
   <p>Perbarui data akun <strong><%= user.username %></strong></p>
 </div>
 <div class="card">
-  <div class="card-header"><h6 class="mb-0 fw-bold">Form Edit User</h6></div>
   <div class="card-body">
     <form method="POST" action="/users/<%= user.id %>">
       <div class="row g-3">
         <div class="col-md-6"><label class="form-label">Role</label><select name="role" class="form-select"><option value="Admin" <%= user.role === 'Admin' ? 'selected' : '' %>>Admin</option><option value="Employee" <%= user.role === 'Employee' ? 'selected' : '' %>>Employee</option></select></div>
         <div class="col-md-6"><label class="form-label">Status</label><select name="status" class="form-select"><option value="Active" <%= user.status === 'Active' ? 'selected' : '' %>>Active</option><option value="Inactive" <%= user.status === 'Inactive' ? 'selected' : '' %>>Inactive</option></select></div>
-        <div class="col-md-6"><label class="form-label">Password Baru <small class="text-muted">(kosongkan jika tidak diganti)</small></label><input type="password" name="password" class="form-control" minlength="6" placeholder="Password baru"></div>
+        <div class="col-md-6"><label class="form-label">Password Baru <small style="color:#999;">(kosongkan jika tidak diganti)</small></label><input type="password" name="password" class="form-control" minlength="6" placeholder="Password baru"></div>
       </div>
-      <div class="mt-4 d-flex gap-2">
-        <button type="submit" class="btn btn-warning text-white"><i class="ti ti-device-floppy me-1"></i>Update</button>
+      <div class="mt-4 d-flex gap-2 pt-2" style="border-top:1px solid var(--border);padding-top:16px;">
+        <button type="submit" class="btn btn-primary"><i class="ti ti-check me-1"></i>Update</button>
         <a href="/users" class="btn btn-light">Batal</a>
       </div>
     </form>

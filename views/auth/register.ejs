@@ -4,7 +4,6 @@
   <p>Buat akun baru untuk mengakses sistem</p>
 </div>
 <div class="card">
-  <div class="card-header"><h6 class="mb-0 fw-bold">Form Registrasi</h6></div>
   <div class="card-body">
     <form method="POST" action="/auth/register">
       <div class="row g-3">
@@ -18,7 +17,7 @@
           <% }) %>
         </select></div>
       </div>
-      <div class="mt-4 d-flex gap-2">
+      <div class="mt-4 d-flex gap-2 pt-2" style="border-top:1px solid var(--border);padding-top:16px;">
         <button type="submit" class="btn btn-primary"><i class="ti ti-user-plus me-1"></i>Register</button>
         <a href="/users" class="btn btn-light">Kembali</a>
       </div>

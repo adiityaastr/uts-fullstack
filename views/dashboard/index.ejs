@@ -7,46 +7,26 @@
 <div class="row g-3 mb-4">
   <div class="col-xl-3 col-md-6">
     <div class="stat-card">
-      <div class="stat-icon" style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);color:#4f46e5;">
-        <i class="ti ti-users-group"></i>
-      </div>
-      <div>
-        <div class="stat-value"><%= totalKaryawan %></div>
-        <div class="stat-label">Total Karyawan</div>
-      </div>
+      <div class="stat-icon" style="background:#e8f0ed;color:#5a7c6f;"><i class="ti ti-users"></i></div>
+      <div><div class="stat-value"><%= totalKaryawan %></div><div class="stat-label">Total Karyawan</div></div>
     </div>
   </div>
   <div class="col-xl-3 col-md-6">
     <div class="stat-card">
-      <div class="stat-icon" style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#059669;">
-        <i class="ti ti-building"></i>
-      </div>
-      <div>
-        <div class="stat-value"><%= totalDivisi %></div>
-        <div class="stat-label">Total Divisi</div>
-      </div>
+      <div class="stat-icon" style="background:#ede9fe;color:#7c3aed;"><i class="ti ti-building"></i></div>
+      <div><div class="stat-value"><%= totalDivisi %></div><div class="stat-label">Total Divisi</div></div>
     </div>
   </div>
   <div class="col-xl-3 col-md-6">
     <div class="stat-card">
-      <div class="stat-icon" style="background:linear-gradient(135deg,#e0f2fe,#bae6fd);color:#0284c7;">
-        <i class="ti ti-user-shield"></i>
-      </div>
-      <div>
-        <div class="stat-value"><%= totalUser %></div>
-        <div class="stat-label">Total User</div>
-      </div>
+      <div class="stat-icon" style="background:#e0f2fe;color:#0284c7;"><i class="ti ti-user-cog"></i></div>
+      <div><div class="stat-value"><%= totalUser %></div><div class="stat-label">Total User</div></div>
     </div>
   </div>
   <div class="col-xl-3 col-md-6">
     <div class="stat-card">
-      <div class="stat-icon" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#d97706;">
-        <i class="ti ti-check"></i>
-      </div>
-      <div>
-        <div class="stat-value"><%= totalAktif %></div>
-        <div class="stat-label">Karyawan Aktif</div>
-      </div>
+      <div class="stat-icon" style="background:#fef3c7;color:#b45309;"><i class="ti ti-circle-check"></i></div>
+      <div><div class="stat-value"><%= totalAktif %></div><div class="stat-label">Karyawan Aktif</div></div>
     </div>
   </div>
 </div>
@@ -54,13 +34,13 @@
 <div class="row g-3">
   <div class="col-md-6">
     <div class="card">
-      <div class="card-header"><h6 class="mb-0 fw-bold">Karyawan per Divisi</h6></div>
+      <div class="card-header"><h6 class="mb-0 fw-bold" style="font-size:14px;">Karyawan per Divisi</h6></div>
       <div class="card-body"><div class="chart-container" id="chartDivision"></div></div>
     </div>
   </div>
   <div class="col-md-6">
     <div class="card">
-      <div class="card-header"><h6 class="mb-0 fw-bold">Karyawan per Status</h6></div>
+      <div class="card-header"><h6 class="mb-0 fw-bold" style="font-size:14px;">Karyawan per Status</h6></div>
       <div class="card-body"><div class="chart-container" id="chartStatus"></div></div>
     </div>
   </div>
@@ -72,21 +52,21 @@ document.addEventListener('DOMContentLoaded', function() {
   var statusData = <%- JSON.stringify(byStatus) %>;
 
   new ApexCharts(document.querySelector('#chartDivision'), {
-    chart: { type: 'donut', height: 340, fontFamily: 'Inter' },
+    chart: { type: 'donut', height: 320, fontFamily: 'Plus Jakarta Sans' },
     labels: divisionData.map(function(d) { return d.division; }),
     series: divisionData.map(function(d) { return d.total; }),
-    legend: { position: 'bottom', fontSize: '13px', fontWeight: 500 },
-    colors: ['#4f46e5','#059669','#d97706','#dc2626','#7c3aed','#0284c7','#0891b2','#16a34a'],
-    plotOptions: { pie: { donut: { size: '55%' } } },
+    legend: { position: 'bottom', fontSize: '12px' },
+    colors: ['#5a7c6f','#7c3aed','#0284c7','#b45309','#dc2626','#059669','#6366f1','#0891b2'],
+    plotOptions: { pie: { donut: { size: '60%' } } },
     dataLabels: { style: { fontSize: '11px' } }
   }).render();
 
   new ApexCharts(document.querySelector('#chartStatus'), {
-    chart: { type: 'bar', height: 340, fontFamily: 'Inter' },
+    chart: { type: 'bar', height: 320, fontFamily: 'Plus Jakarta Sans' },
     xaxis: { categories: statusData.map(function(d) { return d.status; }) },
     series: [{ name: 'Total', data: statusData.map(function(d) { return d.total; }) }],
-    colors: ['#4f46e5'],
-    plotOptions: { bar: { borderRadius: 6, columnWidth: '50%' } },
+    colors: ['#5a7c6f'],
+    plotOptions: { bar: { borderRadius: 4, columnWidth: '45%' } },
     dataLabels: { enabled: false }
   }).render();
 });

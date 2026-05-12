@@ -1,22 +1,17 @@
 <div class="topbar">
-  <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()">
-    <i class="ti ti-menu-2"></i>
-  </button>
-  <span class="topbar-title">Employee Management System</span>
+  <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()"><i class="ti ti-menu-2"></i></button>
+  <span class="topbar-title"><%= typeof title !== 'undefined' ? title : 'Dashboard' %></span>
   <div class="topbar-spacer"></div>
   <div class="topbar-actions">
-    <button class="theme-toggle" id="themeToggle" title="Toggle Theme">
-      <i class="ti ti-sun" id="themeIcon"></i>
-    </button>
     <% if (locals.user) { %>
     <div class="dropdown">
-      <button class="user-dropdown-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+      <button class="user-dropdown-btn dropdown-toggle" data-bs-toggle="dropdown">
         <div class="user-avatar"><%= user.username.charAt(0).toUpperCase() %></div>
         <span><%= user.username %></span>
         <span class="badge user-role-badge <%= user.role === 'Admin' ? 'bg-danger' : 'bg-primary' %>"><%= user.role %></span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
-        <li><span class="dropdown-item-text px-3 py-1" style="font-size:11px;color:#64748b;">Signed in as <strong style="color:inherit;"><%= user.username %></strong></span></li>
+        <li><span class="dropdown-item-text" style="font-size:11px;color:#999;">Signed in as <strong><%= user.username %></strong></span></li>
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item" href="/auth/logout"><i class="ti ti-logout me-2"></i>Logout</a></li>
       </ul>

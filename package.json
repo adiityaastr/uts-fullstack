@@ -1,14 +1,23 @@
 {
   "name": "web_uts_fullstack",
   "version": "1.0.0",
-  "description": "",
+  "description": "PT Digital Nusantara - Employee Management System (UTS Fullstack Web Development)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "dev": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "employee-management",
+    "express",
+    "ejs",
+    "mysql",
+    "bootstrap",
+    "fullstack",
+    "uts"
+  ],
+  "author": "Muhamad Aditya Saputra (411231139)",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

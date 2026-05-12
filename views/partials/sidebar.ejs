@@ -1,36 +1,27 @@
 <aside id="sidebar">
   <a href="/dashboard" class="sidebar-brand">
-    <div class="sidebar-brand-icon">
-      <i class="ti ti-building"></i>
-    </div>
-    <div class="sidebar-brand-text">
-      PT Digital<br>Nusantara
-    </div>
+    <div class="sidebar-brand-icon"><i class="ti ti-building"></i></div>
+    <div class="sidebar-brand-text">Digital Nusantara<small>Employee System</small></div>
   </a>
   <nav class="sidebar-nav">
     <a class="nav-link <%= currentPage === 'dashboard' ? 'active' : '' %>" href="/dashboard">
-      <span class="nav-icon"><i class="ti ti-layout-dashboard"></i></span>
-      <span>Dashboard</span>
+      <span class="nav-icon"><i class="ti ti-layout-dashboard"></i></span>Dashboard
     </a>
     <a class="nav-link <%= currentPage === 'employees' ? 'active' : '' %>" href="/employees">
-      <span class="nav-icon"><i class="ti ti-users-group"></i></span>
-      <span>Karyawan</span>
+      <span class="nav-icon"><i class="ti ti-users"></i></span>Karyawan
     </a>
     <% if (locals.user && locals.user.role === 'Admin') { %>
     <a class="nav-link <%= currentPage === 'users' ? 'active' : '' %>" href="/users">
-      <span class="nav-icon"><i class="ti ti-user-shield"></i></span>
-      <span>Users</span>
+      <span class="nav-icon"><i class="ti ti-user-cog"></i></span>Users
     </a>
     <a class="nav-link <%= currentPage === 'upload' ? 'active' : '' %>" href="/upload">
-      <span class="nav-icon"><i class="ti ti-file-upload"></i></span>
-      <span>Upload Excel</span>
+      <span class="nav-icon"><i class="ti ti-file-upload"></i></span>Upload Excel
     </a>
     <% } %>
   </nav>
   <div class="sidebar-footer">
     <a class="nav-link" href="/auth/logout" onclick="return confirm('Yakin ingin logout?')">
-      <span class="nav-icon"><i class="ti ti-logout"></i></span>
-      <span>Logout</span>
+      <span class="nav-icon"><i class="ti ti-logout"></i></span>Logout
     </a>
   </div>
 </aside>
