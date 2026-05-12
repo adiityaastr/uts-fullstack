@@ -228,37 +228,46 @@ web_uts_fullstack/
 ## Database Schema
 
 ```
-┌─ employees ──────────────────────────────────────┐
-│ id (PK)          employee_code (UNIQUE)           │
-│ full_name        gender           birth_date       │
-│ email            phone_number     address           │
-│ city             province         postal_code       │
-│ division         position         salary            │
-│ join_date        employment_status profile_photo   │
-│ emergency_contact emergency_phone                  │
-│ education        marital_status                    │
-│ created_at       updated_at                        │
-└────────────────────────────────────────────────────┘
+┌─ employees ───────────────────────────────────────────┐
+│ id (PK, AI)           employee_code (UNIQUE)           │
+│ full_name (INDEXED)   gender            birth_date     │
+│ email (UNIQUE)        phone_number      address         │
+│ city                  province          postal_code     │
+│ division (INDEXED)    position          salary          │
+│ join_date             employment_status profile_photo  │
+│ emergency_contact     emergency_phone                   │
+│ education             marital_status                    │
+│ created_at            updated_at                        │
+│                                                        │
+│ PK: id       UNIQUE: employee_code, email               │
+│ INDEX: idx_full_name (full_name), idx_division (division)│
+└────────────────────────────────────────────────────────┘
         │
-        │ 1 : 0..1
+        │ 1 : 0..1 (FK employee_id ON DELETE SET NULL)
         ▼
-┌─ users ───────────────────────────────────────────┐
-│ id (PK)          employee_id (FK → employees.id)  │
-│ username (UNIQUE) email (UNIQUE)  password        │
-│ role             status           remember_token   │
+┌─ users ────────────────────────────────────────────┐
+│ id (PK)          employee_id (FK → employees.id)   │
+│ username (UNIQUE) email (UNIQUE)  password         │
+│ role             status           remember_token    │
 │ last_login       reset_token      reset_token_exp. │
-│ created_at       updated_at                        │
-└────────────────────────────────────────────────────┘
+│ created_at       updated_at                         │
+└─────────────────────────────────────────────────────┘
 
-┌─ sessions ────────────────────────────────────────┐
-│ session_id (PK)  expires          data (TEXT)      │
+┌─ sessions ─────────────────────────────────────────┐
+│ session_id (PK)  expires          data (TEXT)       │
 └────────────────────────────────────────────────────┘
 ```
 
 **Tabel:**
-- `employees` — 23 kolom data karyawan
+- `employees` — 23 kolom data karyawan; 6 kategori: identitas, pribadi, kontak, kepegawaian, keamanan, audit trail
 - `users` — akun login dengan role Admin/Employee, terhubung ke employee
 - `sessions` — session store MySQL (auto-managed oleh express-mysql-session)
+
+**Constraints & Indexes:**
+- `employee_code` — UNIQUE (mencegah duplikasi NIK)
+- `email` — UNIQUE (mencegah duplikasi email)
+- `idx_full_name` — INDEX pada `full_name` (mempercepat pencarian LIKE)
+- `idx_division` — INDEX pada `division` (mempercepat filter & GROUP BY)
 
 **Relasi:** `users.employee_id` → `employees.id` (1 employee boleh punya 0 atau 1 user account)
 

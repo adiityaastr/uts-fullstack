@@ -129,6 +129,11 @@ mysql -u root -p uts_employee_db < 411231139_muhamad_aditya_saputra.sql
 
 Jika berhasil, tidak ada output error. Tabel yang terbentuk: `employees`, `users`, `sessions`.
 
+Tabel `employees` memiliki:
+- **23 kolom** dalam 6 kategori (identitas, pribadi, kontak, kepegawaian, keamanan, audit trail)
+- **UNIQUE** constraint pada `employee_code` (NIK) dan `email`
+- **INDEX** pada `full_name` (mempercepat pencarian) dan `division` (mempercepat filter)
+
 #### 3.4 Verifikasi Database
 
 ```bash
