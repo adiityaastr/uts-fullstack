@@ -1,56 +1,67 @@
 <%- include('../partials/header', { currentPage: 'dashboard', title: 'Dashboard' }) %>
-<div class="row g-4 mb-4">
+<div class="page-header">
+  <h4>Dashboard</h4>
+  <p>Ringkasan data karyawan PT Digital Nusantara</p>
+</div>
+
+<div class="row g-3 mb-4">
   <div class="col-xl-3 col-md-6">
-    <div class="card border-primary border-start border-4 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <div><h6 class="text-muted mb-1">Total Karyawan</h6><h2 class="mb-0"><%= totalKaryawan %></h2></div>
-          <span class="bg-primary rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;"><i class="ti ti-users text-white fs-4"></i></span>
-        </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);color:#4f46e5;">
+        <i class="ti ti-users-group"></i>
+      </div>
+      <div>
+        <div class="stat-value"><%= totalKaryawan %></div>
+        <div class="stat-label">Total Karyawan</div>
       </div>
     </div>
   </div>
   <div class="col-xl-3 col-md-6">
-    <div class="card border-success border-start border-4 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <div><h6 class="text-muted mb-1">Total Divisi</h6><h2 class="mb-0"><%= totalDivisi %></h2></div>
-          <span class="bg-success rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;"><i class="ti ti-building text-white fs-4"></i></span>
-        </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#059669;">
+        <i class="ti ti-building"></i>
+      </div>
+      <div>
+        <div class="stat-value"><%= totalDivisi %></div>
+        <div class="stat-label">Total Divisi</div>
       </div>
     </div>
   </div>
   <div class="col-xl-3 col-md-6">
-    <div class="card border-info border-start border-4 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <div><h6 class="text-muted mb-1">Total User</h6><h2 class="mb-0"><%= totalUser %></h2></div>
-          <span class="bg-info rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;"><i class="ti ti-user-shield text-white fs-4"></i></span>
-        </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:linear-gradient(135deg,#e0f2fe,#bae6fd);color:#0284c7;">
+        <i class="ti ti-user-shield"></i>
+      </div>
+      <div>
+        <div class="stat-value"><%= totalUser %></div>
+        <div class="stat-label">Total User</div>
       </div>
     </div>
   </div>
   <div class="col-xl-3 col-md-6">
-    <div class="card border-warning border-start border-4 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center">
-          <div><h6 class="text-muted mb-1">Data Aktif</h6><h2 class="mb-0"><%= totalAktif %></h2></div>
-          <span class="bg-warning rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:50px;height:50px;"><i class="ti ti-check text-white fs-4"></i></span>
-        </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#d97706;">
+        <i class="ti ti-check"></i>
+      </div>
+      <div>
+        <div class="stat-value"><%= totalAktif %></div>
+        <div class="stat-label">Karyawan Aktif</div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="row g-4">
+<div class="row g-3">
   <div class="col-md-6">
-    <div class="card shadow-sm"><div class="card-header"><h5 class="card-title mb-0">Karyawan per Divisi</h5></div>
-      <div class="card-body"><div id="chartDivision" style="min-height:320px;"></div></div>
+    <div class="card">
+      <div class="card-header"><h6 class="mb-0 fw-bold">Karyawan per Divisi</h6></div>
+      <div class="card-body"><div class="chart-container" id="chartDivision"></div></div>
     </div>
   </div>
   <div class="col-md-6">
-    <div class="card shadow-sm"><div class="card-header"><h5 class="card-title mb-0">Karyawan per Status</h5></div>
-      <div class="card-body"><div id="chartStatus" style="min-height:320px;"></div></div>
+    <div class="card">
+      <div class="card-header"><h6 class="mb-0 fw-bold">Karyawan per Status</h6></div>
+      <div class="card-body"><div class="chart-container" id="chartStatus"></div></div>
     </div>
   </div>
 </div>
@@ -61,19 +72,22 @@ document.addEventListener('DOMContentLoaded', function() {
   var statusData = <%- JSON.stringify(byStatus) %>;
 
   new ApexCharts(document.querySelector('#chartDivision'), {
-    chart: { type: 'donut', height: 320 },
-    labels: divisionData.map(d => d.division),
-    series: divisionData.map(d => d.total),
-    legend: { position: 'bottom' },
-    colors: ['#0d6efd','#198754','#ffc107','#dc3545','#6610f2','#0dcaf0','#6f42c1','#fd7e14'],
+    chart: { type: 'donut', height: 340, fontFamily: 'Inter' },
+    labels: divisionData.map(function(d) { return d.division; }),
+    series: divisionData.map(function(d) { return d.total; }),
+    legend: { position: 'bottom', fontSize: '13px', fontWeight: 500 },
+    colors: ['#4f46e5','#059669','#d97706','#dc2626','#7c3aed','#0284c7','#0891b2','#16a34a'],
+    plotOptions: { pie: { donut: { size: '55%' } } },
+    dataLabels: { style: { fontSize: '11px' } }
   }).render();
 
   new ApexCharts(document.querySelector('#chartStatus'), {
-    chart: { type: 'bar', height: 320 },
-    xaxis: { categories: statusData.map(d => d.status) },
-    series: [{ name: 'Total', data: statusData.map(d => d.total) }],
-    colors: ['#0d6efd'],
-    plotOptions: { bar: { borderRadius: 4 } },
+    chart: { type: 'bar', height: 340, fontFamily: 'Inter' },
+    xaxis: { categories: statusData.map(function(d) { return d.status; }) },
+    series: [{ name: 'Total', data: statusData.map(function(d) { return d.total; }) }],
+    colors: ['#4f46e5'],
+    plotOptions: { bar: { borderRadius: 6, columnWidth: '50%' } },
+    dataLabels: { enabled: false }
   }).render();
 });
 </script>

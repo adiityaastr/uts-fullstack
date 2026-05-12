@@ -1,6 +1,10 @@
 <%- include('../partials/header', { currentPage: 'employees', title: 'Edit Karyawan' }) %>
-<div class="card shadow-sm">
-  <div class="card-header"><h5 class="card-title mb-0">Edit Karyawan: <%= employee.full_name %></h5></div>
+<div class="page-header">
+  <h4>Edit Karyawan</h4>
+  <p>Perbarui data karyawan <strong><%= employee.full_name %></strong></p>
+</div>
+<div class="card">
+  <div class="card-header"><h6 class="mb-0 fw-bold">Form Edit Karyawan</h6></div>
   <div class="card-body">
     <form method="POST" action="/employees/<%= employee.id %>" enctype="multipart/form-data">
       <div class="row g-3">
@@ -10,7 +14,7 @@
         <div class="col-md-3"><label class="form-label">Tanggal Lahir</label><input type="date" name="birth_date" class="form-control" value="<%= employee.birth_date ? new Date(employee.birth_date).toISOString().split('T')[0] : '' %>"></div>
         <div class="col-md-3"><label class="form-label">Pendidikan</label><input type="text" name="education" class="form-control" value="<%= employee.education || '' %>"></div>
         <div class="col-md-3"><label class="form-label">Status Nikah</label><select name="marital_status" class="form-select"><option value="Single" <%= employee.marital_status === 'Single' ? 'selected' : '' %>>Single</option><option value="Married" <%= employee.marital_status === 'Married' ? 'selected' : '' %>>Married</option></select></div>
-        <div class="col-md-3"><label class="form-label">Foto Profil</label><input type="file" name="profile_photo" class="form-control" accept=".jpg,.jpeg,.png"><% if (employee.profile_photo) { %><small class="text-muted d-block">Foto: <%= employee.profile_photo %></small><% } %></div>
+        <div class="col-md-3"><label class="form-label">Foto Profil</label><input type="file" name="profile_photo" class="form-control" accept=".jpg,.jpeg,.png"><% if (employee.profile_photo) { %><small class="text-muted d-block">Saat ini: <strong><%= employee.profile_photo.split('/').pop() %></strong></small><% } %><small class="text-muted d-block">Max 2MB, JPG/PNG</small></div>
         <div class="col-md-4"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="<%= employee.email || '' %>"></div>
         <div class="col-md-4"><label class="form-label">No HP</label><input type="text" name="phone_number" class="form-control" value="<%= employee.phone_number || '' %>"></div>
         <div class="col-md-4"><label class="form-label">Kota</label><input type="text" name="city" class="form-control" value="<%= employee.city || '' %>"></div>
@@ -26,8 +30,8 @@
         <div class="col-md-6"><label class="form-label">Telp Darurat</label><input type="text" name="emergency_phone" class="form-control" value="<%= employee.emergency_phone || '' %>"></div>
       </div>
       <div class="mt-4 d-flex gap-2">
-        <button type="submit" class="btn btn-warning"><i class="ti ti-edit me-1"></i>Update</button>
-        <a href="/employees" class="btn btn-secondary">Batal</a>
+        <button type="submit" class="btn btn-warning text-white"><i class="ti ti-edit me-1"></i>Update</button>
+        <a href="/employees" class="btn btn-light">Batal</a>
       </div>
     </form>
   </div>
