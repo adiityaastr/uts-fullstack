@@ -17,7 +17,8 @@ const userController = {
       });
     } catch (err) {
       console.error(err);
-      res.status(500).send('Server error');
+      req.session.error = 'Gagal memuat data user.';
+      res.redirect('/dashboard');
     }
   },
 
@@ -31,7 +32,8 @@ const userController = {
       res.render('users/edit', { title: 'Edit User', currentPage: 'users', user });
     } catch (err) {
       console.error(err);
-      res.status(500).send('Server error');
+      req.session.error = 'Gagal memuat form edit user.';
+      res.redirect('/users');
     }
   },
 

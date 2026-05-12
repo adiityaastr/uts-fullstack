@@ -56,6 +56,11 @@ const authController = {
       if (req.body.remember) {
         const rememberToken = crypto.randomBytes(32).toString('hex');
         await User.update(user.id, { remember_token: rememberToken });
+        res.cookie('remember_token', rememberToken, {
+          maxAge: 30 * 24 * 60 * 60 * 1000,
+          httpOnly: true,
+          sameSite: 'lax',
+        });
       }
 
       delete req.session.captchaAnswer;
@@ -109,6 +114,7 @@ const authController = {
   },
 
   logout(req, res) {
+    res.clearCookie('remember_token');
     req.session.destroy(() => {
       res.redirect('/auth/login');
     });

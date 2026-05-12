@@ -1,6 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
+const cookieParser = require('cookie-parser');
 const path = require('path');
 require('dotenv').config();
 
@@ -12,6 +13,7 @@ const sessionStore = new MySQLStore({}, pool);
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 app.use(session({
   key: 'connect.sid',
@@ -51,6 +53,19 @@ app.use('/upload', uploadRoutes);
 app.get('/', (req, res) => {
   if (req.session.user) return res.redirect('/dashboard');
   res.redirect('/auth/login');
+});
+
+app.use((err, req, res, next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    req.session.error = 'Ukuran file terlalu besar. Maksimal 2MB.';
+    return res.redirect('back');
+  }
+  if (err.message && err.message.includes('Hanya file')) {
+    req.session.error = err.message;
+    return res.redirect('back');
+  }
+  console.error(err);
+  res.status(500).send('Internal Server Error');
 });
 
 module.exports = app;

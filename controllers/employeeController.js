@@ -16,7 +16,8 @@ const employeeController = {
       });
     } catch (err) {
       console.error(err);
-      res.status(500).send('Server error');
+      req.session.error = 'Gagal memuat data karyawan.';
+      res.redirect('/dashboard');
     }
   },
 
@@ -31,12 +32,23 @@ const employeeController = {
     try {
       const data = { ...req.body };
       if (req.file) data.profile_photo = '/uploads/photos/' + req.file.filename;
+
+      const existing = await Employee.findByCode(data.employee_code);
+      if (existing) {
+        req.session.error = 'Kode karyawan sudah digunakan.';
+        return res.redirect('/employees/create');
+      }
+
       await Employee.create(data);
       req.session.success = 'Data karyawan berhasil ditambahkan.';
       res.redirect('/employees');
     } catch (err) {
       console.error(err);
-      req.session.error = 'Gagal menambahkan data karyawan.';
+      if (err.message && err.message.includes('file')) {
+        req.session.error = err.message;
+      } else {
+        req.session.error = 'Gagal menambahkan data karyawan.';
+      }
       res.redirect('/employees/create');
     }
   },
@@ -55,7 +67,8 @@ const employeeController = {
       });
     } catch (err) {
       console.error(err);
-      res.status(500).send('Server error');
+      req.session.error = 'Gagal memuat detail karyawan.';
+      res.redirect('/employees');
     }
   },
 
@@ -73,20 +86,41 @@ const employeeController = {
       });
     } catch (err) {
       console.error(err);
-      res.status(500).send('Server error');
+      req.session.error = 'Gagal memuat form edit karyawan.';
+      res.redirect('/employees');
     }
   },
 
   async update(req, res) {
     try {
       const data = { ...req.body };
-      if (req.file) data.profile_photo = '/uploads/photos/' + req.file.filename;
+
+      const existing = await Employee.findByCode(data.employee_code);
+      if (existing && existing.id != req.params.id) {
+        req.session.error = 'Kode karyawan sudah digunakan oleh karyawan lain.';
+        return res.redirect('/employees/' + req.params.id + '/edit');
+      }
+
+      if (req.file) {
+        const employee = await Employee.findById(req.params.id);
+        if (employee && employee.profile_photo) {
+          const fs = require('fs');
+          const path = require('path');
+          const oldPhotoPath = path.join(__dirname, '..', employee.profile_photo);
+          try { if (fs.existsSync(oldPhotoPath)) fs.unlinkSync(oldPhotoPath); } catch {}
+        }
+        data.profile_photo = '/uploads/photos/' + req.file.filename;
+      }
       await Employee.update(req.params.id, data);
       req.session.success = 'Data karyawan berhasil diupdate.';
       res.redirect('/employees');
     } catch (err) {
       console.error(err);
-      req.session.error = 'Gagal mengupdate data karyawan.';
+      if (err.message && err.message.includes('file')) {
+        req.session.error = err.message;
+      } else {
+        req.session.error = 'Gagal mengupdate data karyawan.';
+      }
       res.redirect('/employees/' + req.params.id + '/edit');
     }
   },

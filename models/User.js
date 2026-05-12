@@ -79,6 +79,11 @@ const User = {
     return rows[0] || null;
   },
 
+  async findByRememberToken(token) {
+    const [rows] = await pool.execute('SELECT * FROM users WHERE remember_token = ?', [token]);
+    return rows[0] || null;
+  },
+
   async countAll() {
     const [rows] = await pool.execute('SELECT COUNT(*) AS total FROM users');
     return rows[0].total;

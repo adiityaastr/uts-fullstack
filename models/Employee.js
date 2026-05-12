@@ -28,6 +28,11 @@ const Employee = {
     return { rows, total, page: parseInt(page), totalPages: Math.ceil(total / limit) };
   },
 
+  async findByCode(code) {
+    const [rows] = await pool.execute('SELECT * FROM employees WHERE employee_code = ?', [code]);
+    return rows[0] || null;
+  },
+
   async findById(id) {
     const [rows] = await pool.execute('SELECT * FROM employees WHERE id = ?', [id]);
     return rows[0] || null;
@@ -64,13 +69,16 @@ const Employee = {
     const placeholders = Object.keys(rows[0]).map(() => '?').join(', ');
     const sql = `INSERT INTO employees (${fields}) VALUES (${placeholders})`;
     let inserted = 0;
+    const skipped = [];
     for (const row of rows) {
       try {
         await pool.execute(sql, Object.values(row));
         inserted++;
-      } catch {}
+      } catch (e) {
+        skipped.push(row.employee_code || 'unknown');
+      }
     }
-    return inserted;
+    return { inserted, total: rows.length, skipped };
   },
 
   async countByStatus(status) {

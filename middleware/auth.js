@@ -1,8 +1,25 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 require('dotenv').config();
 
-function isAuthenticated(req, res, next) {
+async function isAuthenticated(req, res, next) {
   if (req.session.user) return next();
+
+  const rememberToken = req.cookies?.remember_token;
+  if (rememberToken) {
+    try {
+      const user = await User.findByRememberToken(rememberToken);
+      if (user) {
+        req.session.user = {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+        };
+        return next();
+      }
+    } catch {}
+  }
+
   req.session.error = 'Silakan login terlebih dahulu';
   res.redirect('/auth/login');
 }

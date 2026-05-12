@@ -3,6 +3,21 @@ const path = require('path');
 const XLSX = require('xlsx');
 const Employee = require('../models/Employee');
 
+function readCSVRows(filePath) {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',');
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = (cols[idx] || '').trim(); });
+    rows.push(row);
+  }
+  return rows;
+}
+
 const uploadController = {
   showUpload(req, res) {
     const excelDir = path.join(__dirname, '..', 'uploads', 'excels');
@@ -25,9 +40,15 @@ const uploadController = {
       }
 
       const filePath = req.file.path;
-      const workbook = XLSX.readFile(filePath);
-      const sheetName = workbook.SheetNames[0];
-      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      const ext = path.extname(filePath).toLowerCase();
+      let rows;
+      if (ext === '.csv') {
+        rows = readCSVRows(filePath);
+      } else {
+        const workbook = XLSX.readFile(filePath);
+        const sheetName = workbook.SheetNames[0];
+        rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      }
 
       if (rows.length === 0) {
         req.session.error = 'File kosong atau tidak bisa dibaca.';
@@ -56,8 +77,12 @@ const uploadController = {
         emergency_phone: r.emergency_phone || r['Telp Darurat'] || null,
       }));
 
-      const inserted = await Employee.bulkCreate(employees);
-      req.session.success = `Berhasil mengimport ${inserted} dari ${employees.length} data.`;
+      const result = await Employee.bulkCreate(employees);
+      let msg = `Berhasil mengimport ${result.inserted} dari ${result.total} data.`;
+      if (result.skipped.length > 0) {
+        msg += ` Kode duplikat/error: ${result.skipped.join(', ')}`;
+      }
+      req.session.success = msg;
       res.redirect('/upload');
     } catch (err) {
       console.error(err);
