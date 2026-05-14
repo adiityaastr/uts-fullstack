@@ -270,11 +270,31 @@ const pool = mysql.createPool({
 module.exports = pool;
 ```
 
-**Poin penjelasan:**
-- Menggunakan **connection pool** (bukan single connection) → efisien untuk multiple request
-- `mysql2/promise` → support async/await, lebih clean dari callback
-- Credential dari `.env` → tidak hardcode di source code (keamanan)
-- `connectionLimit: 10` → maksimal 10 koneksi simultan ke database
+**Cara kerja detail:**
+
+1. **`require('mysql2/promise')`** — Mengimpor versi promise-based dari mysql2. Berbeda dengan mysql2 biasa yang pakai callback (`(err, result) => {}`), versi ini return Promise sehingga bisa pakai `async/await`. Ini membuat kode lebih mudah dibaca dan di-maintain.
+
+2. **`require('dotenv').config()`** — Membaca file `.env` di root project dan memasukkan isinya ke `process.env`. Jadi credential database tidak perlu ditulis langsung di kode (hardcode), melainkan disimpan di file `.env` yang tidak di-commit ke Git.
+
+3. **`mysql.createPool({...})`** — Membuat **connection pool**, bukan single connection. Bedanya:
+   - **Single connection**: 1 koneksi dipakai bergantian. Jika ada 10 request bersamaan, 9 harus menunggu.
+   - **Connection pool**: Menyiapkan beberapa koneksi sekaligus. Request bisa dilayani paralel tanpa saling menunggu.
+
+4. **`waitForConnections: true`** — Jika semua 10 koneksi sedang dipakai, request baru akan **menunggu** (antri) sampai ada koneksi yang selesai, bukan langsung error.
+
+5. **`connectionLimit: 10`** — Maksimal 10 koneksi aktif ke MySQL secara bersamaan. Angka ini dipilih karena:
+   - Cukup untuk aplikasi skala UTS (tidak terlalu banyak concurrent user)
+   - Tidak membebani MySQL server (setiap koneksi pakai memory di server DB)
+
+6. **`module.exports = pool`** — Pool di-export sebagai singleton. Seluruh aplikasi (models, controllers) menggunakan pool yang sama. Tidak perlu buat koneksi baru setiap kali query.
+
+**Alur saat query dijalankan:**
+```
+Controller panggil Model → Model panggil pool.execute(sql)
+→ Pool ambil 1 koneksi idle dari pool
+→ Kirim query ke MySQL → Terima hasil
+→ Koneksi dikembalikan ke pool (siap dipakai request lain)
+```
 
 ---
 
@@ -300,10 +320,36 @@ async function isAuthenticated(req, res, next) {
 }
 ```
 
-**Poin penjelasan:**
-- **3 layer pengecekan**: session aktif → remember token → redirect login
-- Jika session expired tapi cookie remember_token masih ada → auto-restore session
-- Pattern middleware Express: `(req, res, next)` → lanjut atau redirect
+**Cara kerja detail:**
+
+Middleware ini adalah "penjaga gerbang" — setiap request ke halaman yang butuh login **harus melewati fungsi ini dulu**.
+
+1. **`if (req.session.user) return next()`** — Pengecekan pertama: apakah session masih aktif? `req.session.user` berisi `{id, username, role}` yang di-set saat login. Jika ada, langsung `next()` (lanjut ke controller). Session berlaku 1 jam sejak aktivitas terakhir.
+
+2. **`req.cookies?.remember_token`** — Pengecekan kedua: jika session sudah expired (lewat 1 jam), cek apakah ada cookie `remember_token`. Operator `?.` (optional chaining) mencegah error jika `req.cookies` undefined.
+
+3. **`User.findByRememberToken(rememberToken)`** — Cari di database: apakah token ini cocok dengan salah satu user? Query-nya: `SELECT * FROM users WHERE remember_token = ?`. Jika cocok, berarti user ini pernah login dan centang "Remember Me".
+
+4. **`req.session.user = {...}`** — Jika token valid, **buat session baru** otomatis tanpa user perlu login ulang. Ini yang disebut "auto-restore session". User tidak sadar session-nya pernah expired.
+
+5. **`catch {}`** — Jika terjadi error (misal DB down), abaikan saja dan lanjut ke langkah berikutnya (redirect login). Tidak crash server.
+
+6. **`req.session.error = '...'` + `res.redirect('/auth/login')`** — Pengecekan ketiga (fallback): jika session tidak ada DAN remember token tidak valid → redirect ke halaman login dengan pesan error.
+
+**Alur visual:**
+```
+Request masuk
+  ├─ Session ada? → ✅ next() (lanjut ke halaman)
+  ├─ Cookie remember_token ada?
+  │   ├─ Token cocok di DB? → ✅ Buat session baru → next()
+  │   └─ Token tidak cocok → ❌ Redirect login
+  └─ Tidak ada cookie → ❌ Redirect login
+```
+
+**Kenapa pattern ini penting:**
+- User tidak perlu login ulang setiap 1 jam jika sudah centang "Remember Me"
+- Cookie berlaku 30 hari, jadi selama itu user bisa auto-login
+- Jika user logout, cookie dihapus → remember token tidak bisa dipakai lagi
 
 ---
 
@@ -317,10 +363,45 @@ function isAdmin(req, res, next) {
 }
 ```
 
-**Poin penjelasan:**
-- Middleware sederhana tapi efektif → cek role dari session
-- Digunakan di route: `router.post('/', isAuthenticated, isAdmin, controller.create)`
-- Chain middleware: auth dulu → baru cek role → baru jalankan controller
+**Cara kerja detail:**
+
+Middleware ini mengontrol **otorisasi** (authorization) — bukan siapa yang boleh masuk sistem (itu authentication), tapi **apa yang boleh dilakukan** setelah masuk.
+
+1. **`req.session.user && req.session.user.role === 'Admin'`** — Dua pengecekan sekaligus:
+   - `req.session.user` → pastikan session ada (user sudah login)
+   - `.role === 'Admin'` → pastikan role-nya Admin, bukan Employee
+   
+   Jika keduanya true → `next()` (lanjut ke controller).
+
+2. **Kenapa cek session lagi padahal sudah ada `isAuthenticated`?** — Defensive programming. Middleware ini bisa saja dipanggil tanpa `isAuthenticated` di depannya (misalnya developer lupa). Dengan cek `req.session.user &&`, tidak akan crash jika session null.
+
+3. **`req.session.error = '...'`** — Set pesan error di session. Pesan ini akan muncul 1 kali di halaman dashboard (flash message pattern).
+
+4. **`res.redirect('/dashboard')`** — User Employee yang coba akses halaman Admin dikembalikan ke dashboard, bukan ke halaman login. Karena mereka sudah login, hanya saja tidak punya izin.
+
+**Cara penggunaan di route:**
+```javascript
+// Hanya Admin yang bisa tambah karyawan
+router.post('/', isAuthenticated, isAdmin, controller.create);
+
+// Semua user login bisa lihat list
+router.get('/', isAuthenticated, controller.index);
+```
+
+**Alur middleware chain:**
+```
+Request POST /employees
+  → isAuthenticated: sudah login? ✅
+  → isAdmin: role Admin? ✅
+  → controller.create: proses tambah karyawan
+```
+
+Jika Employee coba POST /employees:
+```
+  → isAuthenticated: sudah login? ✅
+  → isAdmin: role Admin? ❌ → redirect /dashboard + pesan error
+  (controller.create TIDAK pernah dijalankan)
+```
 
 ---
 
@@ -334,10 +415,41 @@ function generateCaptcha() {
 }
 ```
 
-**Poin penjelasan:**
-- CAPTCHA sederhana tapi efektif mencegah brute-force bot
-- Answer disimpan di `req.session.captchaAnswer` (server-side) → tidak bisa di-bypass dari client
-- Soal berubah setiap kali halaman login di-load
+**Cara kerja detail:**
+
+CAPTCHA (Completely Automated Public Turing test to tell Computers and Humans Apart) ini mencegah bot melakukan brute-force login.
+
+1. **`Math.random()`** — Menghasilkan angka desimal acak antara 0 (inklusif) dan 1 (eksklusif). Contoh: 0.7342...
+
+2. **`Math.random() * 10`** — Kalikan 10 → range jadi 0 sampai 9.999... Contoh: 7.342...
+
+3. **`Math.floor(...)`** — Bulatkan ke bawah → jadi integer 0-9. Contoh: 7
+
+4. **`... + 1`** — Tambah 1 → range final jadi 1-10. Ini agar soal tidak ada angka 0 (terlalu mudah).
+
+5. **Return object:**
+   - `question: "7 + 3 = ?"` → ditampilkan ke user di form login
+   - `answer: 10` → disimpan di `req.session.captchaAnswer` (server-side)
+   - `a, b` → angka individual (untuk keperluan rendering di template jika perlu)
+
+**Alur penggunaan di sistem:**
+```
+1. User buka /auth/login
+2. showLogin() panggil generateCaptcha()
+3. Jawaban (answer) disimpan di req.session.captchaAnswer
+4. Soal (question) dikirim ke template EJS → ditampilkan di form
+5. User isi jawaban + submit form
+6. login() bandingkan: parseInt(req.body.captcha) === req.session.captchaAnswer
+7. Jika salah → redirect login + error "CAPTCHA salah"
+8. Jika benar → lanjut proses login
+9. Setelah login sukses → delete req.session.captchaAnswer (bersihkan)
+```
+
+**Kenapa efektif mencegah bot:**
+- Jawaban disimpan di **server session**, bukan di HTML → bot tidak bisa baca jawaban dari source code halaman
+- Soal berubah setiap kali halaman di-refresh → bot tidak bisa hardcode jawaban
+- Bot harus bisa "memahami" soal matematika → menambah kompleksitas serangan
+- Sederhana untuk manusia (penjumlahan 1-10) tapi menambah 1 langkah untuk bot
 
 ---
 
@@ -394,12 +506,59 @@ async login(req, res) {
 }
 ```
 
-**Poin penjelasan:**
-- Login flow 8 langkah: CAPTCHA → find user → cek status → verify password → JWT → session → last login → remember me
-- `bcrypt.compare()` → membandingkan plain text dengan hash (one-way, aman)
-- `crypto.randomBytes(32)` → token random 256-bit (tidak bisa ditebak)
-- Cookie `httpOnly: true` + `sameSite: 'lax'` → anti XSS & CSRF
-- `delete req.session.captchaAnswer` → bersihkan CAPTCHA setelah login sukses
+**Cara kerja detail (8 langkah berurutan):**
+
+**Langkah 1 — Validasi CAPTCHA:**
+- `req.body` berisi data dari form HTML (username, password, captcha)
+- `parseInt(captcha)` → konversi string input user ke angka
+- Bandingkan dengan `req.session.captchaAnswer` yang di-set saat halaman login di-render
+- Jika salah → langsung redirect, **tidak lanjut ke pengecekan password** (hemat resource, tidak perlu query DB)
+
+**Langkah 2 — Cari user di database:**
+- `User.findByUsername(username)` → query: `SELECT * FROM users WHERE username = ?`
+- Jika tidak ditemukan → return error "Username atau password salah"
+- Pesan error sengaja **tidak spesifik** (tidak bilang "username tidak ada") → agar attacker tidak bisa enumerate username yang valid
+
+**Langkah 3 — Cek status akun:**
+- Admin bisa nonaktifkan akun user (set status = 'Inactive')
+- User yang dinonaktifkan tidak bisa login meskipun password benar
+- Use case: karyawan resign tapi datanya masih disimpan
+
+**Langkah 4 — Verifikasi password dengan bcrypt:**
+- `bcrypt.compare(plaintext, hash)` → membandingkan password yang diketik user dengan hash di database
+- bcrypt **tidak pernah decrypt** hash → ia hash ulang input dengan salt yang sama, lalu bandingkan hasilnya
+- Ini one-way: dari hash tidak bisa dikembalikan ke password asli
+- Return `true` atau `false`
+
+**Langkah 5 — Generate JWT token:**
+- `jwt.sign(payload, secret, options)` → buat token berisi data user
+- Payload: `{id, username, role}` → data yang bisa dibaca dari token
+- Secret: kunci rahasia dari `.env` → untuk verifikasi keaslian token
+- `expiresIn: '1h'` → token otomatis invalid setelah 1 jam
+- Token ini disimpan di session untuk dipakai jika ada API call
+
+**Langkah 6 — Set session:**
+- `req.session.user = {...}` → menyimpan data user di session MySQL
+- Setelah ini, middleware `isAuthenticated` akan mengenali user ini sebagai "sudah login"
+- Data minimal: hanya id, username, role (tidak simpan password di session)
+
+**Langkah 7 — Update last login:**
+- `UPDATE users SET last_login = NOW() WHERE id = ?`
+- Untuk audit trail: admin bisa lihat kapan terakhir user login
+- Berguna untuk deteksi akun yang tidak aktif
+
+**Langkah 8 — Handle Remember Me:**
+- `crypto.randomBytes(32).toString('hex')` → generate 32 bytes random = 64 karakter hex
+- Token ini **tidak bisa ditebak** (256-bit entropy, sama kuatnya dengan kunci enkripsi)
+- Simpan di 2 tempat: database (kolom `remember_token`) dan cookie browser
+- Cookie settings:
+  - `maxAge: 30 * 24 * 60 * 60 * 1000` → 30 hari dalam milidetik (2.592.000.000 ms)
+  - `httpOnly: true` → JavaScript di browser **tidak bisa** akses cookie ini (anti XSS)
+  - `sameSite: 'lax'` → cookie tidak dikirim dari website lain (anti CSRF dasar)
+
+**Terakhir:**
+- `delete req.session.captchaAnswer` → bersihkan jawaban CAPTCHA dari session (tidak diperlukan lagi)
+- `res.redirect('/dashboard')` → user berhasil login, arahkan ke dashboard
 
 ---
 
@@ -434,12 +593,71 @@ async findAll({ search, page = 1, limit = 10 }) {
 }
 ```
 
-**Poin penjelasan:**
-- **Prepared statements** (`?` placeholder) → anti SQL injection
-- Search multi-kolom: nama, email, divisi, status sekaligus
-- Pattern `conditions[]` → mudah ditambah filter baru (extensible)
-- Pagination: `LIMIT ? OFFSET ?` → hanya ambil data yang ditampilkan
-- Return metadata: total, page, totalPages → untuk render pagination UI
+**Cara kerja detail:**
+
+Fungsi ini menangani 3 hal sekaligus: **pencarian**, **pagination**, dan **counting** — semua dengan prepared statements (anti SQL injection).
+
+**1. Dynamic Query Building:**
+```javascript
+let sql = 'SELECT * FROM employees';       // Query dasar
+const conditions = [];                       // Array untuk WHERE clauses
+```
+- Query dibangun secara dinamis — jika tidak ada search, WHERE tidak ditambahkan
+- Pattern `conditions[]` memudahkan penambahan filter baru di masa depan (misal filter by divisi, status, dll)
+
+**2. Search dengan LIKE:**
+```javascript
+const s = `%${search}%`;  // % = wildcard (cocok dengan karakter apapun)
+conditions.push('(full_name LIKE ? OR email LIKE ? OR division LIKE ? OR employment_status LIKE ?)');
+params.push(s, s, s, s);  // 4 parameter untuk 4 kolom
+```
+- `%keyword%` → cari "keyword" di posisi manapun dalam string
+- Contoh: search "budi" → cocok dengan "Budi Santoso", "Agus Budiman", dll
+- Search di 4 kolom sekaligus → user tidak perlu pilih mau cari di kolom mana
+- **Prepared statement** (`?`) → nilai search TIDAK digabung langsung ke SQL string, mencegah SQL injection
+
+**3. Pagination dengan LIMIT & OFFSET:**
+```javascript
+sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+const allParams = [...params, parseInt(limit), (parseInt(page) - 1) * parseInt(limit)];
+```
+- `ORDER BY created_at DESC` → data terbaru di atas
+- `LIMIT 10` → ambil maksimal 10 baris
+- `OFFSET` = berapa baris yang di-skip:
+  - Page 1: OFFSET 0 (skip 0, ambil baris 1-10)
+  - Page 2: OFFSET 10 (skip 10, ambil baris 11-20)
+  - Page 3: OFFSET 20 (skip 20, ambil baris 21-30)
+  - Formula: `(page - 1) * limit`
+
+**4. Dua query terpisah:**
+```javascript
+const [rows] = await pool.execute(sql, allParams);        // Ambil data (10 baris)
+const [countResult] = await pool.execute(countSql, params); // Hitung total semua
+```
+- Query pertama: ambil data untuk halaman ini saja (cepat, hanya 10 baris)
+- Query kedua: hitung total data yang cocok (untuk tahu ada berapa halaman)
+- Kenapa tidak pakai `SQL_CALC_FOUND_ROWS`? Karena sudah deprecated di MySQL 8.0+
+
+**5. Return metadata pagination:**
+```javascript
+return { rows, total, page: parseInt(page), totalPages: Math.ceil(total / limit) };
+```
+- `rows` → array 10 data karyawan untuk ditampilkan
+- `total` → total semua data yang cocok (misal 47)
+- `page` → halaman saat ini (misal 2)
+- `totalPages` → `Math.ceil(47 / 10)` = 5 halaman
+- `Math.ceil` → pembulatan ke atas (47 data / 10 per halaman = 4.7 → 5 halaman)
+
+**Contoh query yang dihasilkan:**
+```sql
+-- Tanpa search, page 1:
+SELECT * FROM employees ORDER BY created_at DESC LIMIT 10 OFFSET 0
+
+-- Dengan search "IT", page 2:
+SELECT * FROM employees 
+WHERE (full_name LIKE '%IT%' OR email LIKE '%IT%' OR division LIKE '%IT%' OR employment_status LIKE '%IT%') 
+ORDER BY created_at DESC LIMIT 10 OFFSET 10
+```
 
 ---
 
@@ -466,11 +684,75 @@ async bulkCreate(rows) {
 }
 ```
 
-**Poin penjelasan:**
-- Insert per-row (bukan batch) → jika 1 row gagal, yang lain tetap masuk
-- Duplikat kode karyawan otomatis ter-catch oleh UNIQUE constraint
-- Return statistik: berapa berhasil, berapa gagal, kode mana yang duplikat
-- User mendapat feedback detail setelah import
+**Cara kerja detail:**
+
+Fungsi ini mengimport banyak data karyawan sekaligus dari file Excel/CSV, dengan penanganan error per-baris.
+
+**1. Bangun SQL template dari baris pertama:**
+```javascript
+const fields = Object.keys(rows[0]).join(', ');
+// Hasil: "employee_code, full_name, gender, birth_date, email, ..."
+
+const placeholders = Object.keys(rows[0]).map(() => '?').join(', ');
+// Hasil: "?, ?, ?, ?, ?, ..."
+
+const sql = `INSERT INTO employees (${fields}) VALUES (${placeholders})`;
+// Hasil: "INSERT INTO employees (employee_code, full_name, ...) VALUES (?, ?, ...)"
+```
+- `Object.keys(rows[0])` → ambil nama-nama kolom dari object pertama
+- Template SQL dibuat **sekali** di awal, dipakai berulang untuk setiap baris
+- Tetap pakai `?` placeholder → aman dari SQL injection
+
+**2. Loop per-row dengan try/catch:**
+```javascript
+for (const row of rows) {
+  try {
+    await pool.execute(sql, Object.values(row));
+    inserted++;    // Berhasil → counter naik
+  } catch (e) {
+    skipped.push(row.employee_code || 'unknown');  // Gagal → catat kode-nya
+  }
+}
+```
+- **Kenapa insert per-row, bukan batch INSERT?**
+  - Jika pakai batch (`INSERT INTO ... VALUES (...), (...), (...)`), 1 row error = SEMUA gagal
+  - Dengan per-row: jika row ke-5 duplikat, row 1-4 dan 6-10 tetap berhasil masuk
+  - Trade-off: sedikit lebih lambat, tapi jauh lebih reliable
+
+- **Apa yang menyebabkan error (catch)?**
+  - `employee_code` duplikat (UNIQUE constraint di database)
+  - `email` duplikat (UNIQUE constraint)
+  - Data tidak valid (misal tanggal format salah)
+  - Kolom required yang kosong
+
+- **`Object.values(row)`** → ambil semua nilai dari object, urutannya sama dengan `Object.keys`
+  - Contoh: `{employee_code: "EMP001", full_name: "Budi"}` → `["EMP001", "Budi"]`
+
+**3. Return statistik:**
+```javascript
+return { inserted, total: rows.length, skipped };
+// Contoh: { inserted: 8, total: 10, skipped: ["EMP001", "EMP005"] }
+```
+- `inserted: 8` → 8 data berhasil masuk database
+- `total: 10` → total 10 data di file Excel
+- `skipped: ["EMP001", "EMP005"]` → kode karyawan yang gagal (duplikat)
+
+**Pesan yang ditampilkan ke user:**
+```
+"Berhasil mengimport 8 dari 10 data. Kode duplikat/error: EMP001, EMP005"
+```
+
+**Alur lengkap dari upload sampai insert:**
+```
+User upload file.xlsx
+→ Multer simpan ke uploads/excels/
+→ Controller baca file dengan XLSX library
+→ XLSX.utils.sheet_to_json() → array of objects
+→ Mapping kolom (Indonesia → English field names)
+→ bulkCreate(mappedRows)
+→ Loop insert per-row
+→ Return statistik → tampilkan ke user
+```
 
 ---
 
@@ -493,12 +775,90 @@ const photoUpload = multer({
 });
 ```
 
-**Poin penjelasan:**
-- **3 layer validasi**: storage config + size limit + file type filter
-- `fileFilter` reject file sebelum disimpan ke disk → hemat storage
-- Error di-handle di `app.js` error handler → redirect dengan pesan error
-- Filename: `Date.now() + extension` → unik, tidak bentrok
-- Folder otomatis dibuat jika belum ada (`fs.mkdirSync` dengan `recursive: true`)
+**Cara kerja detail:**
+
+Multer adalah middleware Express untuk menangani `multipart/form-data` (format yang dipakai saat upload file dari HTML form).
+
+**1. Storage Configuration — Di mana dan dengan nama apa file disimpan:**
+
+```javascript
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, photoDir),
+  // photoDir = 'uploads/photos/' → folder tujuan penyimpanan
+
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
+  // Date.now() = timestamp milidetik (misal: 1715698765432)
+  // path.extname('foto_saya.jpg') = '.jpg'
+  // Hasil: '1715698765432.jpg'
+});
+```
+- **Kenapa pakai timestamp sebagai nama file?**
+  - Mencegah bentrok nama (2 user upload "foto.jpg" bersamaan)
+  - Mencegah karakter spesial di nama file yang bisa menyebabkan error
+  - Unik karena timestamp milidetik tidak pernah sama
+
+- **`cb(null, value)`** — Pattern callback Node.js: parameter pertama = error (null = tidak ada error), parameter kedua = nilai yang dikembalikan
+
+**2. Size Limit — Batasi ukuran file:**
+```javascript
+limits: { fileSize: 2 * 1024 * 1024 }  // 2 MB dalam bytes
+// 2 * 1024 = 2048 KB
+// 2048 * 1024 = 2,097,152 bytes = 2 MB
+```
+- Jika file > 2MB → Multer throw error `LIMIT_FILE_SIZE`
+- Error ini di-catch di `app.js` error handler → redirect dengan pesan "Ukuran file terlalu besar"
+- Proteksi server dari upload file besar yang bisa menghabiskan disk space
+
+**3. File Filter — Validasi tipe file SEBELUM disimpan:**
+```javascript
+fileFilter: (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  // '.JPG' → '.jpg' (case-insensitive)
+  
+  if (['.jpg', '.jpeg', '.png'].includes(ext)) cb(null, true);   // ✅ Izinkan
+  else cb(new Error('Hanya file JPG dan PNG yang diizinkan'));     // ❌ Tolak
+},
+```
+- **Whitelist approach** → hanya izinkan format yang diketahui aman
+- File ditolak **sebelum** ditulis ke disk → hemat storage, tidak perlu cleanup
+- `.toLowerCase()` → user upload "FOTO.JPG" tetap diterima
+
+**4. Auto-create folder (di bagian atas file):**
+```javascript
+if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
+if (!fs.existsSync(excelDir)) fs.mkdirSync(excelDir, { recursive: true });
+```
+- Saat server pertama kali jalan, folder `uploads/photos/` dan `uploads/excels/` otomatis dibuat
+- `recursive: true` → buat parent folder juga jika belum ada (misal `uploads/` belum ada)
+
+**5. Cara penggunaan di route:**
+```javascript
+router.post('/', isAuthenticated, isAdmin, photoUpload.single('profile_photo'), controller.create);
+//                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+// 'profile_photo' = nama field <input type="file" name="profile_photo"> di HTML form
+// .single() = hanya terima 1 file
+```
+- Setelah Multer selesai, file info tersedia di `req.file`:
+  ```javascript
+  req.file = {
+    filename: '1715698765432.jpg',
+    path: 'uploads/photos/1715698765432.jpg',
+    size: 524288,  // bytes
+    mimetype: 'image/jpeg'
+  }
+  ```
+- Controller tinggal simpan `req.file.filename` ke database
+
+**Alur lengkap upload foto:**
+```
+User pilih file di form → Submit
+→ Multer cek: ukuran < 2MB? ✅
+→ Multer cek: ekstensi jpg/png? ✅
+→ Multer simpan ke uploads/photos/1715698765432.jpg
+→ Controller ambil req.file.filename
+→ INSERT ke database (kolom profile_photo = '1715698765432.jpg')
+→ Saat tampilkan: <img src="/uploads/photos/1715698765432.jpg">
+```
 
 ---
 
@@ -541,12 +901,103 @@ async function generatePDFStream(employees, res) {
 }
 ```
 
-**Poin penjelasan:**
-- Puppeteer = headless Chrome → render HTML persis seperti di browser
-- Keuntungan: bisa pakai CSS biasa untuk styling PDF (tabel, warna, font)
-- `--no-sandbox` → diperlukan untuk Docker/Linux environment
-- `try/finally` → memastikan browser selalu ditutup meskipun error
-- Stream langsung ke response → tidak perlu simpan file temporary
+**Cara kerja detail:**
+
+Puppeteer adalah library Node.js yang mengontrol browser Chrome/Chromium secara programatik (tanpa tampilan GUI = "headless"). Kita memanfaatkannya untuk "print" halaman HTML menjadi PDF.
+
+**1. Bangun HTML string dari data karyawan:**
+```javascript
+const htmlRows = employees.map((e, i) => `
+  <tr>
+    <td>${i + 1}</td><td>${e.employee_code || ''}</td>...
+  </tr>
+`).join('');
+```
+- `employees.map()` → loop setiap karyawan, buat baris `<tr>` HTML
+- `i + 1` → nomor urut (dimulai dari 1, bukan 0)
+- `e.employee_code || ''` → jika null/undefined, tampilkan string kosong (mencegah "null" muncul di PDF)
+- `.join('')` → gabungkan semua baris jadi 1 string HTML
+
+**2. HTML lengkap dengan CSS inline:**
+```html
+<style>
+  body { font-family: Arial; font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #0d6efd; color: white; }  /* Header biru */
+  tr:nth-child(even) { background: #f9f9f9; }  /* Zebra striping */
+</style>
+```
+- CSS langsung di dalam HTML (inline) karena Puppeteer tidak load file CSS eksternal
+- Styling sama persis seperti yang akan muncul di PDF
+- **Keuntungan Puppeteer vs library PDF biasa**: bisa pakai CSS standar, tidak perlu belajar API khusus
+
+**3. Launch headless Chrome:**
+```javascript
+const browser = await puppeteer.launch({
+  headless: true,                        // Tanpa GUI (tidak buka jendela browser)
+  args: ['--no-sandbox', '--disable-setuid-sandbox'],  // Diperlukan di Linux/Docker
+});
+```
+- `headless: true` → Chrome berjalan di background, tidak ada tampilan visual
+- `--no-sandbox` → menonaktifkan sandbox Chrome (diperlukan saat jalan sebagai root di Docker)
+- Proses ini memakan ~50-100MB RAM sementara
+
+**4. Render HTML dan generate PDF:**
+```javascript
+const page = await browser.newPage();                          // Buka tab baru
+await page.setContent(html, { waitUntil: 'networkidle0' });   // Isi dengan HTML kita
+const pdfBuffer = await page.pdf({
+  format: 'A4',           // Ukuran kertas A4
+  landscape: true,        // Horizontal (karena tabel lebar, banyak kolom)
+  printBackground: true,  // Cetak warna background (header biru, zebra striping)
+  margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
+});
+```
+- `setContent(html)` → seperti mengetik HTML di browser, Chrome render-nya
+- `waitUntil: 'networkidle0'` → tunggu sampai tidak ada network request (memastikan semua selesai di-render)
+- `page.pdf()` → Chrome "print to PDF" halaman tersebut → return Buffer (binary data)
+- `landscape: true` → karena tabel karyawan punya 8 kolom, lebih cocok horizontal
+
+**5. Stream PDF langsung ke browser user:**
+```javascript
+res.writeHead(200, {
+  'Content-Type': 'application/pdf',                              // Tipe file: PDF
+  'Content-Disposition': 'attachment; filename=employees_report.pdf',  // Force download
+  'Content-Length': pdfBuffer.length,                              // Ukuran file
+  'Cache-Control': 'no-cache',                                    // Jangan cache
+});
+res.end(pdfBuffer);  // Kirim binary PDF ke browser
+```
+- `Content-Disposition: attachment` → browser akan **download** file, bukan menampilkan di tab
+- `filename=employees_report.pdf` → nama file saat di-download
+- PDF dikirim langsung dari memory ke browser → **tidak disimpan di server** (hemat disk)
+
+**6. Cleanup dengan try/finally:**
+```javascript
+try {
+  // ... generate PDF ...
+} finally {
+  await browser.close();  // SELALU tutup browser, meskipun terjadi error
+}
+```
+- `finally` block **pasti dijalankan** baik sukses maupun error
+- Jika tidak ditutup → proses Chrome tetap jalan di background → memory leak
+- Setiap request export PDF: buka Chrome → generate → tutup Chrome
+
+**Alur lengkap:**
+```
+User klik "Export PDF"
+→ Route GET /employees/export/pdf
+→ Controller ambil semua data karyawan dari DB
+→ generatePDFStream(employees, res)
+→ Bangun HTML string dengan data
+→ Launch Chrome headless
+→ Render HTML di Chrome
+→ Chrome "print" ke PDF (buffer)
+→ Stream buffer ke response HTTP
+→ Browser user download file PDF
+→ Chrome ditutup
+```
 
 ---
 
@@ -567,12 +1018,76 @@ router.post('/:id', isAuthenticated, isAdmin, photoUpload.single('profile_photo'
 router.post('/:id/delete', isAuthenticated, isAdmin, employeeController.delete);
 ```
 
-**Poin penjelasan:**
-- Setiap route punya **middleware chain** yang berbeda sesuai kebutuhan
-- `GET /` → semua user authenticated bisa lihat list
-- `POST /` → hanya Admin + harus authenticated + upload foto
-- Export routes **harus sebelum** `/:id` → agar tidak tertangkap sebagai parameter id
-- Pattern: GET (read), POST (create/update/delete) — bukan REST murni tapi pragmatis untuk form HTML
+**Cara kerja detail:**
+
+File ini mendefinisikan **semua URL yang berhubungan dengan karyawan** dan menentukan siapa yang boleh mengaksesnya serta middleware apa yang dijalankan.
+
+**1. Konsep Middleware Chain:**
+```javascript
+router.post('/', isAuthenticated, isAdmin, photoUpload.single('profile_photo'), employeeController.create);
+//              ───────────────  ───────  ─────────────────────────────────────  ─────────────────────────
+//              Middleware #1    Mid #2   Middleware #3                           Handler terakhir
+```
+- Express menjalankan middleware **dari kiri ke kanan** secara berurutan
+- Setiap middleware harus panggil `next()` untuk lanjut ke middleware berikutnya
+- Jika salah satu middleware **tidak** panggil `next()` (misal redirect), yang setelahnya **tidak dijalankan**
+- Ini seperti pos pemeriksaan: harus lolos semua checkpoint sebelum sampai tujuan
+
+**Contoh alur untuk `POST /employees` (tambah karyawan):**
+```
+Request masuk
+→ isAuthenticated: sudah login? 
+  ├─ Ya → next() → lanjut
+  └─ Tidak → redirect /auth/login (BERHENTI, isAdmin tidak dijalankan)
+→ isAdmin: role Admin?
+  ├─ Ya → next() → lanjut
+  └─ Tidak → redirect /dashboard (BERHENTI, upload tidak dijalankan)
+→ photoUpload.single('profile_photo'): proses upload file
+  ├─ File valid → next() → lanjut (file tersimpan, info di req.file)
+  └─ File invalid → throw Error (ditangkap error handler di app.js)
+→ employeeController.create: simpan data ke database
+```
+
+**2. Perbedaan akses per-route:**
+
+| Route | Middleware | Siapa yang bisa akses |
+|-------|-----------|----------------------|
+| `GET /` (list) | isAuthenticated | Semua user login (Admin + Employee) |
+| `GET /create` | isAuthenticated + isAdmin | Hanya Admin |
+| `POST /` (simpan) | isAuthenticated + isAdmin + photoUpload | Hanya Admin |
+| `GET /:id` (detail) | isAuthenticated | Semua user login |
+| `POST /:id/delete` | isAuthenticated + isAdmin | Hanya Admin |
+
+**3. Kenapa export routes HARUS sebelum `/:id`?**
+```javascript
+// ✅ BENAR - export dulu, baru :id
+router.get('/export/excel', ...);  // URL: /employees/export/excel
+router.get('/export/pdf', ...);    // URL: /employees/export/pdf
+router.get('/:id', ...);           // URL: /employees/123
+
+// ❌ SALAH - jika :id dulu
+router.get('/:id', ...);           // URL: /employees/export → id = "export" ❌
+router.get('/export/excel', ...);  // Tidak pernah tercapai!
+```
+- Express mencocokkan route **dari atas ke bawah** (first match wins)
+- `/:id` adalah **wildcard** — cocok dengan APAPUN: `/employees/123`, `/employees/export`, `/employees/abc`
+- Jika `/:id` di atas, URL `/employees/export/excel` akan ditangkap sebagai `id = "export"` → error
+- Solusi: letakkan route spesifik (`/export/excel`) **sebelum** route wildcard (`/:id`)
+
+**4. Method HTTP dan maknanya:**
+```javascript
+router.get('/', ...);           // GET = ambil/tampilkan data (read-only)
+router.post('/', ...);          // POST = kirim data baru (create)
+router.post('/:id', ...);      // POST = update data yang sudah ada
+router.post('/:id/delete', ...); // POST = hapus data
+```
+- Kenapa delete pakai POST bukan DELETE? Karena HTML form hanya support GET dan POST
+- Untuk REST API murni biasanya pakai PUT/DELETE, tapi untuk form HTML ini lebih pragmatis
+
+**5. `photoUpload.single('profile_photo')`:**
+- `.single('profile_photo')` → terima tepat 1 file dari field bernama `profile_photo`
+- Nama field harus cocok dengan `<input type="file" name="profile_photo">` di HTML
+- Jika form tidak ada file (opsional saat edit), `req.file` akan `undefined` (tidak error)
 
 ---
 
@@ -589,11 +1104,89 @@ app.use(session({
 }));
 ```
 
-**Poin penjelasan:**
-- `store: sessionStore` → session disimpan di MySQL, bukan RAM
-- `maxAge: 3600000` → session expire setelah 1 jam (keamanan)
-- `httpOnly: true` → cookie tidak bisa diakses via JavaScript
-- `resave: false` → tidak save ulang session yang tidak berubah (performa)
+**Cara kerja detail:**
+
+Session adalah mekanisme untuk "mengingat" user antar request. HTTP itu **stateless** (setiap request independen, server tidak tahu siapa yang kirim). Session mengatasi ini dengan menyimpan data user di server dan mengirim "kunci" (session ID) ke browser via cookie.
+
+**1. `key: 'connect.sid'`** — Nama cookie yang dikirim ke browser.
+- Browser menyimpan cookie: `connect.sid = abc123xyz...`
+- Setiap request, browser otomatis kirim cookie ini ke server
+- Server pakai nilai cookie untuk mencari data session di database
+
+**2. `secret: process.env.SESSION_SECRET`** — Kunci rahasia untuk **menandatangani** (sign) cookie.
+- Cookie di-sign agar tidak bisa dipalsukan
+- Jika seseorang mengubah nilai cookie, signature tidak cocok → session ditolak
+- Secret harus random dan panjang (64+ karakter) → disimpan di `.env`
+
+**3. `store: sessionStore`** — Di mana data session disimpan.
+```javascript
+const sessionStore = new MySQLStore({}, pool);
+```
+- Data session disimpan di **tabel `sessions` di MySQL**, bukan di RAM server
+- Keuntungan:
+  - Server restart → session tetap ada (user tidak perlu login ulang)
+  - Bisa scale ke multiple server (semua server baca session dari DB yang sama)
+  - Session otomatis dihapus saat expired (MySQL Store handle cleanup)
+- Jika pakai default (MemoryStore): session hilang saat server restart, memory leak di production
+
+**4. `resave: false`** — Jangan simpan ulang session yang tidak berubah.
+- Tanpa ini: setiap request, session ditulis ulang ke database (meskipun tidak ada perubahan)
+- Dengan `false`: hanya tulis ke DB jika ada perubahan (misal `req.session.user = {...}`)
+- Menghemat query database → performa lebih baik
+
+**5. `saveUninitialized: false`** — Jangan buat session untuk visitor yang belum login.
+- Tanpa ini: setiap orang yang buka halaman login langsung dapat session (meskipun belum login)
+- Dengan `false`: session baru dibuat **hanya saat ada data yang perlu disimpan** (misal setelah login)
+- Menghemat storage database → tidak penuh dengan session kosong
+
+**6. `cookie: { maxAge: 3600000, httpOnly: true }`** — Konfigurasi cookie session.
+- `maxAge: 3600000` → cookie (dan session) expire setelah **3.600.000 milidetik = 1 jam**
+  - Setelah 1 jam tanpa aktivitas → session dianggap expired
+  - User harus login ulang (kecuali ada remember_token)
+  - Ini untuk keamanan: jika user lupa logout di komputer publik, session otomatis mati
+- `httpOnly: true` → cookie **tidak bisa diakses oleh JavaScript** di browser
+  - `document.cookie` tidak akan menampilkan session cookie
+  - Mencegah serangan XSS: meskipun attacker inject script, tidak bisa mencuri session ID
+
+**Alur session lengkap:**
+```
+1. User login berhasil
+   → Server: req.session.user = {id: 1, username: 'admin', role: 'Admin'}
+   → Server simpan ke MySQL: sessions table (session_id, data, expires)
+   → Server kirim cookie: Set-Cookie: connect.sid=signed_session_id
+
+2. User buka halaman /dashboard
+   → Browser kirim cookie: Cookie: connect.sid=signed_session_id
+   → Server verifikasi signature cookie
+   → Server cari session di MySQL berdasarkan session_id
+   → Server set req.session = data dari database
+   → Middleware isAuthenticated cek req.session.user → ada → next()
+
+3. Setelah 1 jam tanpa aktivitas
+   → Cookie expired → browser hapus cookie
+   → Session di MySQL juga expired → dihapus oleh cleanup job
+   → Request berikutnya tidak ada cookie → isAuthenticated redirect ke login
+
+4. User logout
+   → req.session.destroy() → hapus session dari MySQL
+   → res.clearCookie('remember_token') → hapus remember cookie
+   → Redirect ke /auth/login
+```
+
+**Flash message middleware (tepat setelah session config):**
+```javascript
+app.use((req, res, next) => {
+  res.locals.error = req.session.error || null;
+  res.locals.success = req.session.success || null;
+  delete req.session.error;
+  delete req.session.success;
+  next();
+});
+```
+- `res.locals` → variabel yang bisa diakses di semua template EJS
+- Pesan error/success dibaca dari session → disimpan ke locals → **langsung dihapus dari session**
+- Efeknya: pesan hanya muncul **1 kali** (flash message pattern)
+- Contoh: setelah login gagal, pesan "CAPTCHA salah" muncul sekali, refresh → hilang
 
 ---
 
