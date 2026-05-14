@@ -50,7 +50,7 @@
 ### Authentication & Security
 - [x] Login / Register / Logout
 - [x] Custom Math CAPTCHA (random soal matematika)
-- [x] Forgot Password dengan reset token via email
+- [x] Forgot Password dengan reset token (link ditampilkan langsung)
 - [x] "Remember Me" — session auto-restore setelah cookie expired
 - [x] Auto logout setelah **1 jam** inactivity (session maxAge)
 - [x] Password hashing dengan bcrypt (10 salt rounds)
@@ -69,7 +69,7 @@
 - [x] Tambah / Edit / Hapus / Lihat detail karyawan
 - [x] **23 field data** termasuk foto profil, kontak darurat, status pernikahan
 - [x] Upload foto profil (max 2MB, format: jpg/jpeg/png)
-- [x] Search by nama atau kode karyawan
+- [x] Search by nama, email, divisi, atau status karyawan
 - [x] Pagination (setiap 10 data per halaman)
 - [x] Filter by divisi dan status
 
@@ -282,39 +282,34 @@ web_uts_fullstack/
 | GET    | `/`                         | -         | Redirect ke dashboard/login  |
 | GET    | `/auth/login`               | Guest     | Halaman login + CAPTCHA      |
 | POST   | `/auth/login`               | Guest     | Proses login                 |
-| GET    | `/auth/register`            | Guest     | Halaman registrasi           |
-| POST   | `/auth/register`            | Guest     | Proses registrasi            |
+| GET    | `/auth/register`            | Admin     | Halaman registrasi user baru |
+| POST   | `/auth/register`            | Admin     | Proses registrasi user baru  |
 | GET    | `/auth/logout`              | User      | Logout & hapus session       |
 | GET    | `/auth/forgot-password`     | Guest     | Form lupa password           |
 | POST   | `/auth/forgot-password`     | Guest     | Kirim reset token            |
-| GET    | `/auth/reset-password/:token`| Guest    | Form reset password          |
-| POST   | `/auth/reset-password/:token`| Guest    | Proses reset password        |
+| GET    | `/auth/reset/:token`        | Guest     | Form reset password          |
+| POST   | `/auth/reset/:token`        | Guest     | Proses reset password        |
 | GET    | `/dashboard`                | User      | Dashboard + statistik        |
 | GET    | `/employees`                | User      | List karyawan + search       |
 | GET    | `/employees/create`         | Admin     | Form tambah karyawan         |
 | POST   | `/employees`                | Admin     | Simpan karyawan baru         |
 | GET    | `/employees/:id`            | User      | Detail karyawan              |
 | GET    | `/employees/:id/edit`       | Admin     | Form edit karyawan           |
-| POST   | `/employees/:id/update`     | Admin     | Update data karyawan         |
+| POST   | `/employees/:id`            | Admin     | Update data karyawan         |
 | POST   | `/employees/:id/delete`     | Admin     | Hapus karyawan               |
-| GET    | `/employees/export/excel`   | Admin     | Export Excel                 |
-| GET    | `/employees/export/pdf`     | Admin     | Export PDF                   |
+| GET    | `/employees/export/excel`   | User      | Export Excel                 |
+| GET    | `/employees/export/pdf`     | User      | Export PDF                   |
 | GET    | `/users`                    | Admin     | List user accounts           |
-| GET    | `/users/create`             | Admin     | Form tambah user             |
-| POST   | `/users`                    | Admin     | Simpan user baru             |
 | GET    | `/users/:id/edit`           | Admin     | Form edit user               |
-| POST   | `/users/:id/update`         | Admin     | Update user                  |
+| POST   | `/users/:id`               | Admin     | Update user                  |
 | POST   | `/users/:id/delete`         | Admin     | Hapus user                   |
 | GET    | `/upload`                   | Admin     | Halaman upload Excel         |
 | POST   | `/upload/excel`             | Admin     | Proses upload & import       |
 | POST   | `/upload/file/:filename/delete` | Admin | Hapus file Excel             |
 
-### API Endpoints (JWT Bearer Token)
+### Middleware Authentication (JWT)
 
-| Method | Path              | Auth  | Deskripsi                  |
-|--------|-------------------|-------|----------------------------|
-| GET    | `/api/employees`  | JWT   | List semua karyawan (JSON) |
-| GET    | `/api/employees/:id`| JWT | Detail karyawan (JSON)     |
+Tersedia middleware `isAuthenticatedAPI` di `middleware/auth.js` untuk autentikasi berbasis JWT Bearer Token pada endpoint API custom.
 
 ---
 

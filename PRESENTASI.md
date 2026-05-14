@@ -349,7 +349,7 @@ async login(req, res) {
 
   // 1. Validasi CAPTCHA
   if (parseInt(captcha) !== req.session.captchaAnswer) {
-    req.session.error = 'CAPTCHA salah.';
+    req.session.error = 'CAPTCHA salah. Silakan coba lagi.';
     return res.redirect('/auth/login');
   }
 
@@ -373,26 +373,33 @@ async login(req, res) {
 
   // 6. Set session
   req.session.user = { id: user.id, username: user.username, role: user.role };
+  req.session.token = token;
 
-  // 7. Handle Remember Me
+  // 7. Update last login timestamp
+  await User.updateLastLogin(user.id);
+
+  // 8. Handle Remember Me
   if (req.body.remember) {
     const rememberToken = crypto.randomBytes(32).toString('hex');
     await User.update(user.id, { remember_token: rememberToken });
     res.cookie('remember_token', rememberToken, {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 hari
       httpOnly: true,
+      sameSite: 'lax',
     });
   }
 
+  delete req.session.captchaAnswer;
   return res.redirect('/dashboard');
 }
 ```
 
 **Poin penjelasan:**
-- Login flow 7 langkah: CAPTCHA → find user → cek status → verify password → JWT → session → remember me
+- Login flow 8 langkah: CAPTCHA → find user → cek status → verify password → JWT → session → last login → remember me
 - `bcrypt.compare()` → membandingkan plain text dengan hash (one-way, aman)
 - `crypto.randomBytes(32)` → token random 256-bit (tidak bisa ditebak)
-- Cookie `httpOnly: true` → tidak bisa diakses via JavaScript (anti XSS)
+- Cookie `httpOnly: true` + `sameSite: 'lax'` → anti XSS & CSRF
+- `delete req.session.captchaAnswer` → bersihkan CAPTCHA setelah login sukses
 
 ---
 
@@ -403,12 +410,17 @@ async findAll({ search, page = 1, limit = 10 }) {
   let sql = 'SELECT * FROM employees';
   let countSql = 'SELECT COUNT(*) AS total FROM employees';
   const params = [];
+  const conditions = [];
 
   if (search) {
     const s = `%${search}%`;
-    sql += ' WHERE (full_name LIKE ? OR email LIKE ? OR division LIKE ? OR employment_status LIKE ?)';
-    countSql += ' WHERE (full_name LIKE ? OR email LIKE ? OR division LIKE ? OR employment_status LIKE ?)';
+    conditions.push('(full_name LIKE ? OR email LIKE ? OR division LIKE ? OR employment_status LIKE ?)');
     params.push(s, s, s, s);
+  }
+
+  if (conditions.length) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+    countSql += ' WHERE ' + conditions.join(' AND ');
   }
 
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
@@ -416,14 +428,16 @@ async findAll({ search, page = 1, limit = 10 }) {
 
   const [rows] = await pool.execute(sql, allParams);
   const [countResult] = await pool.execute(countSql, params);
+  const total = countResult[0].total;
 
-  return { rows, total: countResult[0].total, page: parseInt(page), totalPages: Math.ceil(countResult[0].total / limit) };
+  return { rows, total, page: parseInt(page), totalPages: Math.ceil(total / limit) };
 }
 ```
 
 **Poin penjelasan:**
 - **Prepared statements** (`?` placeholder) → anti SQL injection
 - Search multi-kolom: nama, email, divisi, status sekaligus
+- Pattern `conditions[]` → mudah ditambah filter baru (extensible)
 - Pagination: `LIMIT ? OFFSET ?` → hanya ambil data yang ditampilkan
 - Return metadata: total, page, totalPages → untuk render pagination UI
 
@@ -463,6 +477,11 @@ async bulkCreate(rows) {
 ### 8. `middleware/upload.js` — File Upload Validation
 
 ```javascript
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, photoDir),
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
+});
+
 const photoUpload = multer({
   storage: photoStorage,
   limits: { fileSize: 2 * 1024 * 1024 }, // Max 2MB
@@ -479,25 +498,46 @@ const photoUpload = multer({
 - `fileFilter` reject file sebelum disimpan ke disk → hemat storage
 - Error di-handle di `app.js` error handler → redirect dengan pesan error
 - Filename: `Date.now() + extension` → unik, tidak bentrok
+- Folder otomatis dibuat jika belum ada (`fs.mkdirSync` dengan `recursive: true`)
 
 ---
 
 ### 9. `utils/pdfGenerator.js` — PDF Export via Puppeteer
 
 ```javascript
-async function generatePDF(htmlContent) {
+async function generatePDFStream(employees, res) {
+  const htmlRows = employees.map((e, i) => `
+    <tr>
+      <td>${i + 1}</td><td>${e.employee_code || ''}</td><td>${e.full_name || ''}</td>
+      <td>${e.division || ''}</td><td>${e.position || ''}</td>
+      <td>${e.employment_status || ''}</td><td>${e.email || ''}</td><td>${e.phone_number || ''}</td>
+    </tr>
+  `).join('');
+
+  const html = `<!DOCTYPE html><html>...
+    <h2>Laporan Data Karyawan - PT Digital Nusantara</h2>
+    <table>...<tbody>${htmlRows}</tbody></table>
+  </html>`;
+
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
-  const page = await browser.newPage();
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-  const pdfBuffer = await page.pdf({
-    format: 'A4', landscape: true, printBackground: true,
-    margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
-  });
-  await browser.close();
-  return pdfBuffer;
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({
+      format: 'A4', landscape: true, printBackground: true,
+      margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
+    });
+    res.writeHead(200, {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename=employees_report.pdf',
+    });
+    res.end(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
 }
 ```
 
@@ -505,7 +545,8 @@ async function generatePDF(htmlContent) {
 - Puppeteer = headless Chrome → render HTML persis seperti di browser
 - Keuntungan: bisa pakai CSS biasa untuk styling PDF (tabel, warna, font)
 - `--no-sandbox` → diperlukan untuk Docker/Linux environment
-- Return buffer → langsung dikirim ke client sebagai download
+- `try/finally` → memastikan browser selalu ditutup meskipun error
+- Stream langsung ke response → tidak perlu simpan file temporary
 
 ---
 
@@ -515,8 +556,14 @@ async function generatePDF(htmlContent) {
 router.get('/', isAuthenticated, employeeController.index);
 router.get('/create', isAuthenticated, isAdmin, employeeController.showCreate);
 router.post('/', isAuthenticated, isAdmin, photoUpload.single('profile_photo'), employeeController.create);
+
+// Export routes MUST be before /:id
+router.get('/export/excel', isAuthenticated, async (req, res) => { /* ... */ });
+router.get('/export/pdf', isAuthenticated, async (req, res) => { /* ... */ });
+
 router.get('/:id', isAuthenticated, employeeController.show);
 router.get('/:id/edit', isAuthenticated, isAdmin, employeeController.showEdit);
+router.post('/:id', isAuthenticated, isAdmin, photoUpload.single('profile_photo'), employeeController.update);
 router.post('/:id/delete', isAuthenticated, isAdmin, employeeController.delete);
 ```
 
@@ -524,8 +571,8 @@ router.post('/:id/delete', isAuthenticated, isAdmin, employeeController.delete);
 - Setiap route punya **middleware chain** yang berbeda sesuai kebutuhan
 - `GET /` → semua user authenticated bisa lihat list
 - `POST /` → hanya Admin + harus authenticated + upload foto
-- `GET /:id/edit` → hanya Admin yang bisa akses form edit
-- Pattern RESTful: GET (read), POST (create/update/delete)
+- Export routes **harus sebelum** `/:id` → agar tidak tertangkap sebagai parameter id
+- Pattern: GET (read), POST (create/update/delete) — bukan REST murni tapi pragmatis untuk form HTML
 
 ---
 
@@ -558,11 +605,11 @@ app.use(session({
 | 2 | `utils/captcha.js` | 20 detik | CAPTCHA sederhana tapi efektif |
 | 3 | `middleware/auth.js` | 45 detik | Auth flow + remember me |
 | 4 | `middleware/role.js` | 15 detik | RBAC sederhana |
-| 5 | `controllers/authController.js` (login) | 1 menit | Login flow 7 langkah |
+| 5 | `controllers/authController.js` (login) | 1 menit | Login flow 8 langkah |
 | 6 | `models/Employee.js` (findAll) | 45 detik | Search + pagination + prepared statements |
-| 7 | `routes/employeeRoutes.js` | 30 detik | Middleware chain pattern |
+| 7 | `routes/employeeRoutes.js` | 30 detik | Middleware chain + route ordering |
 | 8 | `middleware/upload.js` | 30 detik | File validation |
-| 9 | `utils/pdfGenerator.js` | 30 detik | Puppeteer PDF generation |
+| 9 | `utils/pdfGenerator.js` | 30 detik | Puppeteer PDF stream to response |
 
 **Total: ~5 menit** untuk code walkthrough, sisanya untuk demo live.
 
